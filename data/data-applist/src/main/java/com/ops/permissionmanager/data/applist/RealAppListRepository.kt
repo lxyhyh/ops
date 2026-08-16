@@ -22,7 +22,7 @@ class RealAppListRepository @Inject constructor(
             .map { appInfo ->
                 AppInfo(
                     packageName = appInfo.packageName,
-                    appName = pm.getApplicationLabel(appInfo).toString(),
+                    appName = pm.getApplicationLabel(appInfo)?.toString() ?: appInfo.packageName,
                     isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
                 )
             }

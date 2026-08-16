@@ -20,6 +20,7 @@ class RealAppOpsRepository @Inject constructor(
             throw AppOpsError.CommandFailed(result.exitCode, result.stderr)
         }
         val states = AppOpsParser.parseGetOutput(result.stdout)
+            .distinctBy { it.op.name }
         return AppOpsState(packageName, states)
     }
 
