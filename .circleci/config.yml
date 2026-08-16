@@ -1,0 +1,27 @@
+version: 2.1
+
+orbs:
+  android: circleci/android@3.2.0
+
+workflows:
+  build-and-test:
+    jobs:
+      - build
+
+jobs:
+  build:
+    executor: android/android-machine
+    steps:
+      - checkout
+      - android/restore-gradle-cache
+      - android/restore-build-cache
+      - run:
+          name: 运行单元测试
+          command: ./gradlew testDebugUnitTest
+      - run:
+          name: 编译调试版
+          command: ./gradlew assembleDebug
+      - android/save-gradle-cache
+      - android/save-build-cache
+      - store_test_results:
+          path: app/build/test-results
