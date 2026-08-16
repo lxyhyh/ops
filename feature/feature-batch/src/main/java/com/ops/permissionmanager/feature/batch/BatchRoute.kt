@@ -233,8 +233,8 @@ private fun OpSelector(
                 .padding(vertical = 12.dp)
         )
         if (expanded) {
-            LazyColumn(Modifier.fillMaxWidth()) {
-                items(ops, key = { it.name }) { op ->
+            Column(Modifier.fillMaxWidth()) {
+                ops.forEach { op ->
                     Text(
                         text = "${op.displayName}（${op.name}）",
                         style = MaterialTheme.typography.bodyMedium,
