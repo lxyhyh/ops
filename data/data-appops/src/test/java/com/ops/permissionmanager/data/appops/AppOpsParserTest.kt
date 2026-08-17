@@ -75,6 +75,27 @@ class AppOpsParserTest {
     }
 
     @Test
+    fun `parseGetOutput 新增权限均能识别为中文`() {
+        val raw = """
+            Uid mode: default
+              READ_CALL_LOG: allow
+              WRITE_CALL_LOG: deny
+              RECEIVE_EMERGENCY_BROADCAST: allow
+              RECEIVE_SOUNDTRIGGER_AUDIO: ignore
+              SYSTEM_EXEMPT_FROM_ACTIVITY_BG_START_RESTRICTION: allow
+        """.trimIndent()
+
+        val states = AppOpsParser.parseGetOutput(raw)
+
+        assertEquals(5, states.size)
+        assertEquals("读取通话记录", states[0].op.displayName)
+        assertEquals("写入通话记录", states[1].op.displayName)
+        assertEquals("接收紧急广播", states[2].op.displayName)
+        assertEquals("接收声音触发音频", states[3].op.displayName)
+        assertEquals("免于后台启动限制", states[4].op.displayName)
+    }
+
+    @Test
     fun `parseGetOutput 空输入返回空列表`() {
         assertTrue(AppOpsParser.parseGetOutput("").isEmpty())
     }

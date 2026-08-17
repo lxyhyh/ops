@@ -71,6 +71,8 @@ object AppOpCatalog {
         // 电话
         AppOp("READ_PHONE_STATE", "读取手机状态", OpGroup.PHONE),
         AppOp("READ_PHONE_NUMBERS", "读取手机号码", OpGroup.PHONE),
+        AppOp("READ_CALL_LOG", "读取通话记录", OpGroup.PHONE),
+        AppOp("WRITE_CALL_LOG", "写入通话记录", OpGroup.PHONE),
         AppOp("CALL_PHONE", "拨打电话", OpGroup.PHONE),
         AppOp("ANSWER_PHONE_CALLS", "接听电话", OpGroup.PHONE),
         AppOp("PROCESS_OUTGOING_CALLS", "处理拨出电话", OpGroup.PHONE),
@@ -86,6 +88,7 @@ object AppOpCatalog {
         AppOp("WRITE_SMS", "写入短信", OpGroup.SMS),
         AppOp("RECEIVE_SMS", "接收短信", OpGroup.SMS),
         AppOp("RECEIVE_EMERGENCY_SMS", "接收紧急短信", OpGroup.SMS),
+        AppOp("RECEIVE_EMERGENCY_BROADCAST", "接收紧急广播", OpGroup.SMS),
         AppOp("RECEIVE_MMS", "接收彩信", OpGroup.SMS),
         AppOp("RECEIVE_WAP_PUSH", "接收 WAP 推送", OpGroup.SMS),
         AppOp("SEND_SMS", "发送短信", OpGroup.SMS),
@@ -113,6 +116,7 @@ object AppOpCatalog {
         AppOp("RECORD_AUDIO_OUTPUT", "录制音频输出", OpGroup.AUDIO),
         AppOp("RECORD_AUDIO_SANDBOXED", "沙盒录音", OpGroup.AUDIO),
         AppOp("RECEIVE_AMBIENT_TRIGGER_AUDIO", "接收环境触发音频", OpGroup.AUDIO),
+        AppOp("RECEIVE_SOUNDTRIGGER_AUDIO", "接收声音触发音频", OpGroup.AUDIO),
         AppOp("RECEIVE_EXPLICIT_USER_INTERACTION_AUDIO", "接收用户交互音频", OpGroup.AUDIO),
         AppOp("RECEIVE_SANDBOX_TRIGGER_AUDIO", "接收沙盒触发音频", OpGroup.AUDIO),
         AppOp("MUTE_MICROPHONE", "静音麦克风", OpGroup.AUDIO),
@@ -148,6 +152,7 @@ object AppOpCatalog {
         AppOp("SYSTEM_EXEMPT_FROM_POWER_RESTRICTIONS", "免于电量限制", OpGroup.BATTERY),
         AppOp("SYSTEM_EXEMPT_FROM_HIBERNATION", "免于休眠", OpGroup.BATTERY),
         AppOp("SYSTEM_EXEMPT_FROM_SUSPENSION", "免于挂起", OpGroup.BATTERY),
+        AppOp("SYSTEM_EXEMPT_FROM_ACTIVITY_BG_START_RESTRICTION", "免于后台启动限制", OpGroup.BATTERY),
         // 存储
         AppOp("READ_EXTERNAL_STORAGE", "读取外部存储", OpGroup.STORAGE),
         AppOp("WRITE_EXTERNAL_STORAGE", "写入外部存储", OpGroup.STORAGE),
@@ -179,7 +184,10 @@ object AppOpCatalog {
         AppOp("ACCESS_ACCESSIBILITY", "访问无障碍", OpGroup.SYSTEM),
         AppOp("CREATE_ACCESSIBILITY_OVERLAY", "创建无障碍悬浮层", OpGroup.SYSTEM),
         AppOp("INTERACT_ACROSS_PROFILES", "跨用户资料交互", OpGroup.SYSTEM),
-        AppOp("INTERACT_ACROSS_USERS", "跨用户交互", OpGroup.SYSTEM)
+        AppOp("INTERACT_ACROSS_USERS", "跨用户交互", OpGroup.SYSTEM),
+        AppOp("CAPTURE_CONSENTLESS_BUGREPORT_ON_USERDEBUG_BUILD", "无同意捕获错误报告", OpGroup.SYSTEM),
+        // 其他
+        AppOp("OP_RESERVED_FOR_TESTING", "保留测试操作", OpGroup.OTHER)
     )
 
     private val byName: Map<String, AppOp> = catalog.associateBy { it.name }
