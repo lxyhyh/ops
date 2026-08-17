@@ -51,9 +51,27 @@ class AppOpsParserTest {
 
         val states = AppOpsParser.parseGetOutput(raw)
 
-        // UNKNOWN_OP 不在目录中，garbage line 无法匹配，均被跳过
-        assertEquals(1, states.size)
-        assertEquals("RUN_IN_BACKGROUND", states[0].op.name)
+        // garbage line 无法匹配被跳过；UNKNOWN_OP 不在目录中但保留（显示原始名称）
+        assertEquals(2, states.size)
+        assertEquals("UNKNOWN_OP", states[0].op.name)
+        assertEquals("UNKNOWN_OP", states[0].op.displayName)
+        assertEquals("RUN_IN_BACKGROUND", states[1].op.name)
+    }
+
+    @Test
+    fun `parseGetOutput 识别系统实际输出的定位权限名称`() {
+        val raw = """
+            Uid mode: default
+              FINE_LOCATION: allow
+              COARSE_LOCATION: deny
+        """.trimIndent()
+
+        val states = AppOpsParser.parseGetOutput(raw)
+
+        assertEquals(2, states.size)
+        assertEquals("FINE_LOCATION", states[0].op.name)
+        assertEquals("精确定位", states[0].op.displayName)
+        assertEquals("COARSE_LOCATION", states[1].op.name)
     }
 
     @Test

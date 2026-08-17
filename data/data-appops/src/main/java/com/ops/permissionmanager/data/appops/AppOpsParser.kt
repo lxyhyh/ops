@@ -1,6 +1,8 @@
 package com.ops.permissionmanager.data.appops
 
+import com.ops.permissionmanager.core.model.AppOp
 import com.ops.permissionmanager.core.model.AppOpState
+import com.ops.permissionmanager.core.model.OpGroup
 import com.ops.permissionmanager.core.model.OpMode
 import com.ops.permissionmanager.core.model.OpUsageRecord
 
@@ -16,6 +18,7 @@ object AppOpsParser {
      * 解析 `cmd appops get <package>` 输出。
      * 每行格式：`  OP_NAME: MODE` 或 `  OP_NAME: MODE; time=...`
      * 无法识别的行跳过，不整体崩溃。
+     * 不在目录中的权限仍会保留（显示原始名称），确保不遗漏系统返回的任何权限。
      */
     fun parseGetOutput(raw: String): List<AppOpState> {
         return raw.lineSequence()
@@ -24,7 +27,7 @@ object AppOpsParser {
                 val opName = match.groupValues[1]
                 val modeValue = match.groupValues[2]
                 val mode = OpMode.fromCommandValue(modeValue) ?: return@mapNotNull null
-                val op = AppOpCatalog.find(opName) ?: return@mapNotNull null
+                val op = AppOpCatalog.find(opName) ?: AppOp(opName, opName, OpGroup.OTHER)
                 AppOpState(op, mode)
             }
             .toList()
