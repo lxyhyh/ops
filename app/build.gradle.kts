@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.ops.permissionmanager"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.ops.permissionmanager"

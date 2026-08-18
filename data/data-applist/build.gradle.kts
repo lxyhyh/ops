@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.ops.permissionmanager.data.applist"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 29

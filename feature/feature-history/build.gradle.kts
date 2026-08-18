@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.ops.permissionmanager.feature.history"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 29

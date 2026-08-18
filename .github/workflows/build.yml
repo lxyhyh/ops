@@ -22,9 +22,9 @@ jobs:
       - name: 设置 Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: 安装 Android SDK 36 组件
+      - name: 安装 Android SDK 37 组件
         run: |
-          sdkmanager "platforms;android-36" "build-tools;36.0.0" || true
+          sdkmanager "platforms;android-37.0" "build-tools;37.0.0" || true
 
       - name: 缓存 Gradle
         uses: actions/cache@v4
