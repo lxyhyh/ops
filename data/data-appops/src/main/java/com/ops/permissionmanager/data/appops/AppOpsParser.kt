@@ -11,6 +11,14 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
+/**
+ * AppOps 命令输出解析器。
+ *
+ * 与原版反编译逐项对齐：
+ * - parseGetOutput 不去重（去重由上层 RealAppOpsRepository 按 op.name 完成）；
+ * - parseHistoryOutput 逐条保留 Access/Reject 记录（不去重、不合并）；
+ * - 时间戳正则小数位不限（`\.\d+`）。
+ */
 class AppOpsParser @Inject constructor() {
 
     fun parseGetOutput(raw: String): List<AppOpState> =
@@ -23,11 +31,10 @@ class AppOpsParser @Inject constructor() {
                 val op = AppOpCatalog.find(opName) ?: AppOp(opName, opName, OpGroup.OTHER)
                 AppOpState(op, mode)
             }
-            .distinctBy { it.op.name }
             .toList()
 
     fun parseHistoryOutput(raw: String): List<OpUsageRecord> {
-        val byKey = LinkedHashMap<String, OpUsageRecord>()
+        val records = mutableListOf<OpUsageRecord>()
         var currentPackage: String? = null
         var currentOp: String? = null
 
@@ -54,28 +61,14 @@ class AppOpsParser @Inject constructor() {
                     ) {
                         val timestamp = parseTimestamp(trimmed)
                         if (timestamp != null) {
-                            updateRecord(byKey, pkg, op, timestamp)
+                            // 与原版一致：每条记录独立保留，不去重
+                            records.add(OpUsageRecord(pkg, op, timestamp))
                         }
                     }
                 }
             }
         }
-        return byKey.values.toList()
-    }
-
-    private fun updateRecord(
-        byKey: LinkedHashMap<String, OpUsageRecord>,
-        pkg: String,
-        op: String,
-        timestamp: Long
-    ) {
-        val key = "$pkg\u0000$op"
-        val existing = byKey[key]
-        if (existing == null) {
-            byKey[key] = OpUsageRecord(pkg, op, timestamp)
-        } else if (timestamp > existing.timestampMillis) {
-            byKey[key] = existing.copy(timestampMillis = timestamp)
-        }
+        return records
     }
 
     private fun isOpName(name: String): Boolean {
@@ -97,7 +90,8 @@ class AppOpsParser @Inject constructor() {
 
     companion object {
         private val GET_LINE_REGEX = Regex("""([A-Z_]+):\s*(\w+)(?:;.*)?""")
-        private val TIMESTAMP_REGEX = Regex("""\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?""")
+        // 与原版一致：时间戳小数位不限
+        private val TIMESTAMP_REGEX = Regex("""\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:\.\d+)?""")
         private val TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.SSS]")
         private val INSTANCE by lazy { AppOpsParser() }
         fun parseGetOutput(raw: String): List<AppOpState> = INSTANCE.parseGetOutput(raw)

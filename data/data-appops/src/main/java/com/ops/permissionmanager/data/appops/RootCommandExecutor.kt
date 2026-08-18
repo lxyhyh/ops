@@ -16,11 +16,12 @@ class RootCommandExecutor @Inject constructor() : CommandExecutor {
     }
 
     override suspend fun isAvailable(): Boolean {
+        // 与原版一致：执行 id 并检查 uid=0
         val result = try {
-            execute("id -u")
+            execute("id")
         } catch (_: Exception) {
             return false
         }
-        return result.exitCode == 0 && result.stdout.trim() == "0"
+        return result.exitCode == 0 && result.stdout.contains("uid=0")
     }
 }

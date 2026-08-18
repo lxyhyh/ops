@@ -21,7 +21,9 @@ class RealAppOpsRepository @Inject constructor(
         if (result.exitCode != 0) {
             throw AppOpsError.CommandFailed(result.exitCode, result.stderr)
         }
+        // 与原版一致：去重发生在 Repository 层（按 op 名），Parser 保持原样输出
         val states = appOpsParser.parseGetOutput(result.stdout)
+            .distinctBy { it.op.name }
         return AppOpsState(packageName, states)
     }
 

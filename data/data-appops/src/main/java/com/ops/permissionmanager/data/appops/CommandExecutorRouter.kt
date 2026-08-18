@@ -1,6 +1,5 @@
 package com.ops.permissionmanager.data.appops
 
-import com.ops.permissionmanager.core.model.AppOpsError
 import com.ops.permissionmanager.core.model.ModifyMode
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -8,32 +7,39 @@ import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
 
+/**
+ * 命令执行路由：按当前修改模式在 Root / Shizuku 执行器间选择。
+ *
+ * 与原版反编译逐项对齐：
+ * - 构造仅注入 root/shizuku 两个执行器与模式仓库（不持有 ShizukuManager）；
+ * - root/shizuku 可用性各带一个 5s TTL 的 AvailabilityCache；
+ * - isAvailable 直接透传所选执行器结果（无 runCatching 包裹）；
+ * - AUTO 兜底：两者均不可用时回退 RootExecutor（不抛异常）。
+ */
 @Singleton
 class CommandExecutorRouter @Inject constructor(
     @Named("root") private val rootExecutor: CommandExecutor,
     @Named("shizuku") private val shizukuExecutor: CommandExecutor,
-    private val modifyModeRepository: ModifyModeRepository,
-    private val shizukuManager: ShizukuManager
+    private val modifyModeRepository: ModifyModeRepository
 ) : CommandExecutor, ExecutionAvailability {
 
     private val rootAvailable = AvailabilityCache()
+    private val shizukuAvailable = AvailabilityCache()
 
     override suspend fun execute(command: String): ShellResult =
         resolveExecutor().execute(command)
 
-    override suspend fun isAvailable(): Boolean {
-        return runCatching { resolveExecutor().isAvailable() }.getOrDefault(false)
-    }
+    override suspend fun isAvailable(): Boolean =
+        resolveExecutor().isAvailable()
 
     override suspend fun isAnyAvailable(): Boolean {
         if (cachedRootAvailable()) return true
-        return isShizukuAvailable()
+        return cachedShizukuAvailable()
     }
 
     override suspend fun isRootAvailable(): Boolean = cachedRootAvailable()
 
-    override suspend fun isShizukuAvailable(): Boolean =
-        shizukuManager.isBinderAvailable.value && shizukuManager.isPermissionGranted.value
+    override suspend fun isShizukuAvailable(): Boolean = cachedShizukuAvailable()
 
     private suspend fun resolveExecutor(): CommandExecutor =
         when (modifyModeRepository.modifyMode.value) {
@@ -41,16 +47,17 @@ class CommandExecutorRouter @Inject constructor(
             ModifyMode.SHIZUKU -> shizukuExecutor
             ModifyMode.AUTO ->
                 if (cachedRootAvailable()) rootExecutor
-                else if (isShizukuAvailable()) shizukuExecutor
-                else throw AppOpsError.CommandFailed(
-                    exitCode = -1,
-                    stderr = "无可用命令通道（AUTO）：Root 与 Shizuku 均不可用"
-                )
+                else if (cachedShizukuAvailable()) shizukuExecutor
+                else rootExecutor // 与原版一致：兜底 Root，不抛异常
         }
 
     private suspend fun cachedRootAvailable(): Boolean =
         rootAvailable.get { rootExecutor.isAvailable() }
 
+    private suspend fun cachedShizukuAvailable(): Boolean =
+        shizukuAvailable.get { shizukuExecutor.isAvailable() }
+
+    /** 可用性缓存：无锁快速路径 + 锁内二次检查（double-checked locking，与原版一致）。 */
     private class AvailabilityCache {
 
         companion object {
@@ -65,16 +72,23 @@ class CommandExecutorRouter @Inject constructor(
         @Volatile
         private var cachedAt: Long = 0
 
-        suspend fun get(probe: suspend () -> Boolean): Boolean = mutex.withLock {
+        suspend fun get(probe: suspend () -> Boolean): Boolean {
+            // 无锁快速路径（与原版一致）
             val now = System.currentTimeMillis()
             val current = cached
-            if (current != null && now - cachedAt < TTL_MS) {
-                current
-            } else {
-                val fresh = probe()
-                cached = fresh
-                cachedAt = now
-                fresh
+            if (current != null && now - cachedAt < TTL_MS) return current
+
+            return mutex.withLock {
+                val now2 = System.currentTimeMillis()
+                val current2 = cached
+                if (current2 != null && now2 - cachedAt < TTL_MS) {
+                    current2
+                } else {
+                    val fresh = probe()
+                    cached = fresh
+                    cachedAt = now2
+                    fresh
+                }
             }
         }
     }
