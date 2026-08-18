@@ -9,12 +9,19 @@ import com.ops.permissionmanager.data.appops.ShizukuManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+/**
+ * 设置页 ViewModel。
+ *
+ * 与原版反编译逐项对齐：
+ * - uiState 由 MutableStateFlow.asStateFlow() 直接暴露（不用 combine/stateIn）；
+ * - init 中四个独立常驻 collect 分别监听 themeMode / modifyMode / Shizuku Binder / 授权；
+ * - checkAvailability 单独探测 Root 可用性写入 isRootAvailable。
+ */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
@@ -31,29 +38,30 @@ class SettingsViewModel @Inject constructor(
         )
     )
 
-    private val _rootAvailable = MutableStateFlow(false)
-
-    val uiState: StateFlow<SettingsUiState> = combine(
-        settingsRepository.themeMode,
-        modifyModeRepository.modifyMode,
-        shizukuManager.isBinderAvailable,
-        shizukuManager.isPermissionGranted,
-        _rootAvailable
-    ) { theme, mode, binderAvailable, permissionGranted, rootAvailable ->
-        _uiState.value.copy(
-            themeMode = theme,
-            modifyMode = mode,
-            isShizukuBinderAvailable = binderAvailable,
-            isShizukuPermissionGranted = permissionGranted,
-            isRootAvailable = rootAvailable
-        )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = _uiState.value
-    )
+    val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
     init {
+        // 与原版一致：四个独立常驻 collect（不随订阅生命周期暂停）
+        viewModelScope.launch {
+            settingsRepository.themeMode.collect { mode ->
+                _uiState.update { it.copy(themeMode = mode) }
+            }
+        }
+        viewModelScope.launch {
+            modifyModeRepository.modifyMode.collect { mode ->
+                _uiState.update { it.copy(modifyMode = mode) }
+            }
+        }
+        viewModelScope.launch {
+            shizukuManager.isBinderAvailable.collect { available ->
+                _uiState.update { it.copy(isShizukuBinderAvailable = available) }
+            }
+        }
+        viewModelScope.launch {
+            shizukuManager.isPermissionGranted.collect { granted ->
+                _uiState.update { it.copy(isShizukuPermissionGranted = granted) }
+            }
+        }
         checkAvailability()
     }
 
@@ -73,7 +81,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val available = runCatching { executionAvailability.isRootAvailable() }
                 .getOrDefault(false)
-            _rootAvailable.value = available
+            _uiState.update { it.copy(isRootAvailable = available) }
         }
     }
 }
