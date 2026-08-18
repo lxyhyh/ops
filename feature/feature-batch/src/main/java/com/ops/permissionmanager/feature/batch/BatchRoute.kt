@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -41,7 +43,10 @@ import com.ops.permissionmanager.core.model.AppOpCatalog
 import com.ops.permissionmanager.core.model.OpMode
 
 @Composable
-fun BatchRoute(viewModel: BatchViewModel = hiltViewModel()) {
+fun BatchRoute(
+    listState: LazyListState = rememberLazyListState(),
+    viewModel: BatchViewModel = hiltViewModel()
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -55,6 +60,7 @@ fun BatchRoute(viewModel: BatchViewModel = hiltViewModel()) {
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
         BatchScreen(
             uiState = uiState,
+            listState = listState,
             onToggleApp = viewModel::toggleApp,
             onSelectAll = viewModel::selectAll,
             onClearSelection = viewModel::clearSelection,
@@ -71,6 +77,7 @@ fun BatchRoute(viewModel: BatchViewModel = hiltViewModel()) {
 @Composable
 fun BatchScreen(
     uiState: BatchUiState,
+    listState: LazyListState,
     onToggleApp: (String) -> Unit,
     onSelectAll: () -> Unit,
     onClearSelection: () -> Unit,
@@ -102,7 +109,7 @@ fun BatchScreen(
             }
         }
         else -> {
-            LazyColumn(modifier.fillMaxSize()) {
+            LazyColumn(state = listState, modifier = modifier.fillMaxSize()) {
                 item { SectionHeader("选择权限") }
                 item {
                     OpSelector(

@@ -45,6 +45,7 @@ import com.ops.permissionmanager.core.model.OpMode
 @Composable
 fun AppDetailRoute(
     packageName: String,
+    appName: String,
     onBack: () -> Unit,
     viewModel: AppDetailViewModel = hiltViewModel()
 ) {

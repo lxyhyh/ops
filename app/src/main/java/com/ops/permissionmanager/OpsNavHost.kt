@@ -1,22 +1,54 @@
 package com.ops.permissionmanager
 
+import android.net.Uri
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -25,27 +57,21 @@ import com.ops.permissionmanager.feature.applist.AppDetailRoute
 import com.ops.permissionmanager.feature.applist.AppListRoute
 import com.ops.permissionmanager.feature.batch.BatchRoute
 import com.ops.permissionmanager.feature.history.HistoryRoute
+import kotlinx.coroutines.launch
 
-private object Routes {
-    const val APP_LIST = "app_list"
-    const val BATCH = "batch"
-    const val HISTORY = "history"
-    const val SETTINGS = "settings"
-    const val APP_DETAIL = "app_detail/{packageName}"
-    const val APP_DETAIL_PATTERN = "app_detail/"
-}
+private const val TRANSITION_MS = 350
 
 private data class TopLevelDestination(
-    val route: String,
+    val id: Int,
     val label: String,
     val icon: ImageVector
 )
 
 private val topLevelDestinations = listOf(
-    TopLevelDestination(Routes.APP_LIST, "应用", Icons.Filled.Apps),
-    TopLevelDestination(Routes.BATCH, "批量", Icons.Filled.List),
-    TopLevelDestination(Routes.HISTORY, "历史", Icons.Filled.History),
-    TopLevelDestination(Routes.SETTINGS, "设置", Icons.Filled.Settings)
+    TopLevelDestination(0, "应用", Icons.Filled.Apps),
+    TopLevelDestination(1, "批量", Icons.Filled.Tune),
+    TopLevelDestination(2, "历史", Icons.Filled.History),
+    TopLevelDestination(3, "设置", Icons.Filled.Settings)
 )
 
 @Composable
@@ -54,52 +80,168 @@ fun OpsNavHost(modifier: Modifier = Modifier) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
 
-    Scaffold(
-        modifier = modifier,
-        bottomBar = {
-            NavigationBar {
-                topLevelDestinations.forEach { dest ->
-                    val selected = currentDestination?.hierarchy?.any { it.route == dest.route } == true
-                    NavigationBarItem(
-                        selected = selected,
-                        onClick = {
-                            navController.navigate(dest.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+    NavHost(
+        navController = navController,
+        startDestination = "main",
+        modifier = modifier
+    ) {
+        composable("main") {
+            MainScaffold(
+                onAppClick = { packageName, appName ->
+                    navController.navigate("app_detail/" + Uri.encode(packageName) + "/" + Uri.encode(appName))
+                }
+            )
+        }
+        composable(
+            route = "app_detail/{packageName}/{appName}",
+            enterTransition = {
+                scaleIn(
+                    animationSpec = tween(TRANSITION_MS, easing = FastOutSlowInEasing),
+                    initialScale = 0.92f
+                ) + fadeIn(animationSpec = tween(TRANSITION_MS, easing = FastOutSlowInEasing))
+            },
+            exitTransition = {
+                scaleOut(
+                    animationSpec = tween(TRANSITION_MS, easing = FastOutSlowInEasing),
+                    targetScale = 0.92f
+                ) + fadeOut(animationSpec = tween(TRANSITION_MS, easing = FastOutSlowInEasing))
+            },
+            popEnterTransition = {
+                scaleIn(
+                    animationSpec = tween(TRANSITION_MS, easing = FastOutSlowInEasing),
+                    initialScale = 0.92f
+                ) + fadeIn(animationSpec = tween(TRANSITION_MS, easing = FastOutSlowInEasing))
+            },
+            popExitTransition = {
+                scaleOut(
+                    animationSpec = tween(TRANSITION_MS, easing = FastOutSlowInEasing),
+                    targetScale = 0.92f
+                ) + fadeOut(animationSpec = tween(TRANSITION_MS, easing = FastOutSlowInEasing))
+            }
+        ) { entry ->
+            val packageName = Uri.decode(entry.arguments?.getString("packageName") ?: "")
+            val appName = Uri.decode(entry.arguments?.getString("appName") ?: "")
+            AppDetailRoute(
+                packageName = packageName,
+                appName = appName,
+                onBack = { navController.popBackStack() }
+            )
+        }
+    }
+}
+
+@Composable
+private fun MainScaffold(onAppClick: (String, String) -> Unit) {
+    val pagerState = rememberPagerState(
+        initialPage = 0,
+        pageCount = { topLevelDestinations.size }
+    )
+    val scope = rememberCoroutineScope()
+    val appListState = rememberLazyListState()
+    val batchListState = rememberLazyListState()
+    val historyListState = rememberLazyListState()
+
+    Box(Modifier.fillMaxSize().statusBarsPadding()) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            when (page) {
+                0 -> AppListRoute(onAppClick = onAppClick, listState = appListState)
+                1 -> BatchRoute(listState = batchListState)
+                2 -> HistoryRoute(listState = historyListState)
+                3 -> Column { com.ops.permissionmanager.SettingsRoute() }
+            }
+        }
+
+        Surface(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(horizontal = 48.dp)
+                .navigationBarsPadding()
+                .padding(bottom = 12.dp),
+            shape = RoundedCornerShape(50),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f)
+        ) {
+            BoxWithConstraints(Modifier.fillMaxWidth().padding(4.dp)) {
+                val f = maxWidth / topLevelDestinations.size
+                val position = pagerState.currentPage + pagerState.currentPageOffsetFraction
+                Box(
+                    modifier = Modifier
+                        .offset(x = f * position)
+                        .width(f)
+                        .height(44.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                )
+                Row(Modifier.fillMaxWidth()) {
+                    topLevelDestinations.forEachIndexed { index, dest ->
+                        val selected = pagerState.currentPage == index
+                        NavPill(
+                            destination = dest,
+                            selected = selected,
+                            onClick = {
+                                if (pagerState.currentPage != index) {
+                                    scope.launch { pagerState.animateScrollToPage(index) }
+                                } else {
+                                    val target = when (index) {
+                                        0 -> appListState
+                                        1 -> batchListState
+                                        2 -> historyListState
+                                        else -> null
+                                    }
+                                    scope.launch { target?.animateScrollToItem(0) }
                                 }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = { Icon(dest.icon, contentDescription = dest.label) },
-                        label = { Text(dest.label) }
-                    )
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
         }
-    ) { padding ->
-        NavHost(
-            navController = navController,
-            startDestination = Routes.APP_LIST,
-            modifier = Modifier.padding(padding)
+    }
+}
+
+@Composable
+private fun RowScope.NavPill(
+    destination: TopLevelDestination,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val contentColor =
+        if (selected) MaterialTheme.colorScheme.primary
+        else MaterialTheme.colorScheme.onSurfaceVariant
+
+    Surface(
+        onClick = onClick,
+        modifier = modifier
+            .height(44.dp)
+            .clip(RoundedCornerShape(18.dp)),
+        shape = RoundedCornerShape(18.dp),
+        color = Color.Transparent
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
         ) {
-            composable(Routes.APP_LIST) {
-                AppListRoute(
-                    onAppClick = { packageName ->
-                        navController.navigate(Routes.APP_DETAIL_PATTERN + packageName)
-                    }
+            Icon(
+                imageVector = destination.icon,
+                contentDescription = destination.label,
+                modifier = Modifier.size(20.dp),
+                tint = contentColor
+            )
+            if (selected) {
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = destination.label,
+                    color = contentColor,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
                 )
             }
-            composable(Routes.APP_DETAIL) { entry ->
-                val packageName = entry.arguments?.getString("packageName").orEmpty()
-                AppDetailRoute(
-                    packageName = packageName,
-                    onBack = { navController.popBackStack() }
-                )
-            }
-            composable(Routes.BATCH) { BatchRoute() }
-            composable(Routes.HISTORY) { HistoryRoute() }
-            composable(Routes.SETTINGS) { SettingsRoute() }
         }
     }
 }

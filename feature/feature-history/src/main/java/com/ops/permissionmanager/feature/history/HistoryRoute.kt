@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -30,12 +32,16 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun HistoryRoute(viewModel: HistoryViewModel = hiltViewModel()) {
+fun HistoryRoute(
+    listState: LazyListState = rememberLazyListState(),
+    viewModel: HistoryViewModel = hiltViewModel()
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold { padding ->
         HistoryScreen(
             uiState = uiState,
+            listState = listState,
             onRetry = viewModel::loadHistory,
             modifier = Modifier.padding(padding)
         )
@@ -45,6 +51,7 @@ fun HistoryRoute(viewModel: HistoryViewModel = hiltViewModel()) {
 @Composable
 fun HistoryScreen(
     uiState: HistoryUiState,
+    listState: LazyListState,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -75,7 +82,7 @@ fun HistoryScreen(
         }
         else -> {
             val grouped = uiState.records.groupBy { it.packageName }
-            LazyColumn(modifier.fillMaxSize()) {
+            LazyColumn(state = listState, modifier = modifier.fillMaxSize()) {
                 grouped.forEach { (packageName, records) ->
                     item(key = "header_$packageName") {
                         Text(
