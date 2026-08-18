@@ -19,7 +19,7 @@ import kotlin.coroutines.cancellation.CancellationException
 import javax.inject.Inject
 
 data class AppDetailUiState(
-    val isLoading: Boolean = true,
+    val isLoading: Boolean = false,
     val appOps: AppOpsState? = null,
     val error: String? = null,
     val message: String? = null,

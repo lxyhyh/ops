@@ -10,17 +10,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-enum class RootAvailability {
-    UNKNOWN,
-    CHECKING,
-    AVAILABLE,
-    UNAVAILABLE
-}
-
+/** 与原版反编译一致：仅两个字段，默认 isChecking=false。 */
 data class RootCheckUiState(
-    val isChecking: Boolean = true,
-    val isAnyAvailable: Boolean = false,
-    val availability: RootAvailability = RootAvailability.UNKNOWN
+    val isChecking: Boolean = false,
+    val isAnyAvailable: Boolean = false
 )
 
 @HiltViewModel
@@ -37,20 +30,11 @@ class RootCheckViewModel @Inject constructor(
 
     fun checkAvailability() {
         viewModelScope.launch {
-            val prior = _uiState.value
-            if (prior.availability != RootAvailability.AVAILABLE) {
-                _uiState.value = prior.copy(
-                    isChecking = true,
-                    availability = RootAvailability.CHECKING
-                )
-            }
+            // 与原版一致：无条件先进入检查态，再执行可用性探测。
+            _uiState.value = RootCheckUiState(isChecking = true, isAnyAvailable = false)
             val available = runCatching { executionAvailability.isAnyAvailable() }
                 .getOrDefault(false)
-            _uiState.value = _uiState.value.copy(
-                isChecking = false,
-                isAnyAvailable = available,
-                availability = if (available) RootAvailability.AVAILABLE else RootAvailability.UNAVAILABLE
-            )
+            _uiState.value = RootCheckUiState(isChecking = false, isAnyAvailable = available)
         }
     }
 }

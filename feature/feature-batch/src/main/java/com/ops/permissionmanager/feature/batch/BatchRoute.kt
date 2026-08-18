@@ -130,52 +130,59 @@ fun BatchScreen(
         else -> {
             Box(modifier.fillMaxSize()) {
                 Column(Modifier.fillMaxSize()) {
-                    CollapsingTitle(
-                        title = "批量",
-                        subtitle = null,
-                        collapsed = collapsed
-                    )
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainer
-                        ),
-                        elevation = CardDefaults.cardElevation(0.dp)
+                    // 与原版一致：标题与卡片整体带左右 16dp 内边距。
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
                     ) {
-                        Column {
-                            SectionHeader("选择权限")
-                            OpSelector(
-                                selectedOp = uiState.selectedOp,
-                                onSelectOp = onSelectOp
-                            )
-                            HorizontalDivider(
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
-                            SectionHeader("目标状态")
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.Top
-                            ) {
-                                OpMode.entries.forEach { mode ->
-                                    FilterChip(
-                                        selected = uiState.selectedMode == mode,
-                                        onClick = { onSelectMode(mode) },
-                                        label = { Text(mode.displayName) },
-                                        shape = RoundedCornerShape(10.dp),
-                                        colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryFixed
+                        CollapsingTitle(
+                            title = "批量",
+                            subtitle = null,
+                            collapsed = collapsed
+                        )
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainer
+                            ),
+                            elevation = CardDefaults.cardElevation(0.dp)
+                        ) {
+                            Column {
+                                SectionHeader("选择权限")
+                                OpSelector(
+                                    selectedOp = uiState.selectedOp,
+                                    onSelectOp = onSelectOp
+                                )
+                                HorizontalDivider(
+                                    color = MaterialTheme.colorScheme.outlineVariant,
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
+                                SectionHeader("目标状态")
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.Top
+                                ) {
+                                    OpMode.entries.forEach { mode ->
+                                        FilterChip(
+                                            selected = uiState.selectedMode == mode,
+                                            onClick = { onSelectMode(mode) },
+                                            label = { Text(mode.displayName) },
+                                            shape = RoundedCornerShape(10.dp),
+                                            colors = FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryFixed
+                                            )
                                         )
-                                    )
+                                    }
                                 }
+                                Spacer(Modifier.height(8.dp))
                             }
-                            Spacer(Modifier.height(8.dp))
                         }
                     }
 
@@ -189,7 +196,7 @@ fun BatchScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
+                                    .padding(horizontal = 4.dp, vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(

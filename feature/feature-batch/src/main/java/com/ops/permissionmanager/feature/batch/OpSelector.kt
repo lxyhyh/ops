@@ -28,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ops.permissionmanager.core.model.AppOp
 import com.ops.permissionmanager.core.model.AppOpCatalog
@@ -48,38 +49,39 @@ fun OpSelector(
     onSelectOp: (AppOp) -> Unit
 ) {
     var showDialog by remember { mutableStateOf(false) }
-    val ops = AppOpCatalog.all()
+    val ops = remember { AppOpCatalog.all() }
 
-    Row(
-        modifier = Modifier
-            .padding(horizontal = 16.dp)
-            .padding(top = 10.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .clickable { showDialog = true }
-            .fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = selectedOp?.displayName ?: "请选择要修改的权限",
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyLarge,
-            color = if (selectedOp != null) {
-                MaterialTheme.colorScheme.onSurface
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            }
-        )
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+    Column(Modifier.padding(horizontal = 16.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .clickable { showDialog = true }
+                .padding(vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = selectedOp?.displayName ?: "请选择要修改的权限",
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (selectedOp != null) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
+            )
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
-            title = { Text("选择权限") },
+            title = { Text("选择权限", fontWeight = FontWeight.Bold) },
             text = {
                 LazyColumn(
                     modifier = Modifier.heightIn(max = 400.dp),
@@ -88,12 +90,13 @@ fun OpSelector(
                     items(ops, key = { it.name }) { op ->
                         Row(
                             modifier = Modifier
-                                .padding(horizontal = 12.dp, vertical = 14.dp)
+                                .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
                                 .clickable {
                                     onSelectOp(op)
                                     showDialog = false
-                                },
+                                }
+                                .padding(horizontal = 12.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(Modifier.weight(1f)) {
@@ -120,7 +123,8 @@ fun OpSelector(
                     }
                 }
             },
-            confirmButton = {
+            confirmButton = {},
+            dismissButton = {
                 TextButton(onClick = { showDialog = false }) { Text("取消") }
             },
             shape = RoundedCornerShape(24.dp)

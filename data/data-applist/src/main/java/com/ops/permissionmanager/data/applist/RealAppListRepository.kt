@@ -17,10 +17,8 @@ class RealAppListRepository @Inject constructor(
 
     override suspend fun getInstalledApps(): List<AppInfo> = withContext(Dispatchers.IO) {
         val pm = context.packageManager
-        val ownPackageName = context.packageName
+        // 与原版一致：不过滤自身包名，全部已安装应用都展示。
         pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(0))
-            .asSequence()
-            .filter { it.packageName != ownPackageName }
             .map { appInfo ->
                 AppInfo(
                     packageName = appInfo.packageName,
@@ -29,6 +27,5 @@ class RealAppListRepository @Inject constructor(
                 )
             }
             .sortedBy { it.appName.lowercase() }
-            .toList()
     }
 }

@@ -26,7 +26,7 @@ data class BatchResultItem(
 )
 
 data class BatchUiState(
-    val isLoading: Boolean = true,
+    val isLoading: Boolean = false,
     val apps: List<AppInfo> = emptyList(),
     val selectedPackages: Set<String> = emptySet(),
     val selectedOp: AppOp? = null,
@@ -56,14 +56,15 @@ class BatchViewModel @Inject constructor(
 
     fun loadApps() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update { it.copy(isLoading = true, message = null) }
             try {
                 val apps = appListRepository.getInstalledApps()
                 _uiState.update { it.copy(isLoading = false, apps = apps) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = e.message) }
+                // 与原版一致：加载失败提示走 message（Snackbar），不动 error。
+                _uiState.update { it.copy(isLoading = false, message = e.message) }
             }
         }
     }
@@ -138,7 +139,7 @@ class BatchViewModel @Inject constructor(
 
     fun cancelBatch() {
         executeJob?.cancel()
-        _uiState.update { it.copy(isExecuting = false, message = "已取消批量操作") }
+        _uiState.update { it.copy(isExecuting = false, error = null, message = "已取消批量操作") }
     }
 
     fun clearMessage() {

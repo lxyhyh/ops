@@ -14,7 +14,7 @@ import kotlin.coroutines.cancellation.CancellationException
 import javax.inject.Inject
 
 data class AppListUiState(
-    val isLoading: Boolean = true,
+    val isLoading: Boolean = false,
     val apps: List<AppInfo> = emptyList(),
     val error: String? = null
 )

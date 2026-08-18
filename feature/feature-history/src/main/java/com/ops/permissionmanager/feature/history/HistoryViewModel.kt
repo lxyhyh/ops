@@ -14,7 +14,7 @@ import kotlin.coroutines.cancellation.CancellationException
 import javax.inject.Inject
 
 data class HistoryUiState(
-    val isLoading: Boolean = true,
+    val isLoading: Boolean = false,
     val records: List<OpUsageRecord> = emptyList(),
     val error: String? = null
 )
