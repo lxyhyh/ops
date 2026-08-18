@@ -96,7 +96,9 @@ fun HistoryScreen(
             }
         }
         else -> {
-            val grouped = uiState.records.groupBy { it.packageName }
+            // 性能优化：历史分组结果缓存，避免每次重组都全量 groupBy。
+            // 仅在 records 变化时重算（本页 records 只在加载完成后变化一次）。
+            val grouped = remember(uiState.records) { uiState.records.groupBy { it.packageName } }
             // 与其它主页面（应用/批量）一致：标题使用 CollapsingTitle，
             // 下滑时字体缩小并向中间移动，且固定在顶部不随列表滚走。
             val collapsed by remember(listState) {

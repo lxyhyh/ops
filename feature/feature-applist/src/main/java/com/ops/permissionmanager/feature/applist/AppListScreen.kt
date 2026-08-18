@@ -97,16 +97,20 @@ fun AppListScreen(
             ErrorState(message = uiState.error, onRetry = onRetry)
         }
         else -> {
-            val filtered = uiState.apps.filter { app ->
-                val matchFilter = when (selectedFilter) {
-                    AppFilter.All -> true
-                    AppFilter.System -> app.isSystemApp
-                    AppFilter.User -> !app.isSystemApp
+            // 性能优化：过滤结果缓存，避免每次重组（如输入搜索）都全量重算。
+            // 仅在 apps / 筛选条件 / 搜索词变化时重算。行为与之前完全一致。
+            val filtered = remember(uiState.apps, searchQuery, selectedFilter) {
+                uiState.apps.filter { app ->
+                    val matchFilter = when (selectedFilter) {
+                        AppFilter.All -> true
+                        AppFilter.System -> app.isSystemApp
+                        AppFilter.User -> !app.isSystemApp
+                    }
+                    matchFilter && (
+                        app.appName.contains(searchQuery, ignoreCase = true) ||
+                            app.packageName.contains(searchQuery, ignoreCase = true)
+                        )
                 }
-                matchFilter && (
-                    app.appName.contains(searchQuery, ignoreCase = true) ||
-                        app.packageName.contains(searchQuery, ignoreCase = true)
-                    )
             }
 
             Column(Modifier.fillMaxSize()) {
