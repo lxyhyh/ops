@@ -1,4 +1,4 @@
-package com.ops.permissionmanager
+package com.ops.permissionmanager.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

@@ -1,4 +1,4 @@
-package com.ops.permissionmanager
+package com.ops.permissionmanager.feature.settings
 
 /**
  * 主题模式。

@@ -53,6 +53,7 @@ dependencies {
     implementation(project(":feature:feature-applist"))
     implementation(project(":feature:feature-batch"))
     implementation(project(":feature:feature-history"))
+    implementation(project(":feature:feature-settings"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

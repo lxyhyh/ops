@@ -57,6 +57,7 @@ import com.ops.permissionmanager.feature.applist.AppDetailRoute
 import com.ops.permissionmanager.feature.applist.AppListRoute
 import com.ops.permissionmanager.feature.batch.BatchRoute
 import com.ops.permissionmanager.feature.history.HistoryRoute
+import com.ops.permissionmanager.feature.settings.SettingsRoute
 import kotlinx.coroutines.launch
 
 private const val TRANSITION_MS = 350
@@ -150,7 +151,7 @@ private fun MainScaffold(onAppClick: (String, String) -> Unit) {
                 0 -> AppListRoute(onAppClick = onAppClick, listState = appListState)
                 1 -> BatchRoute(listState = batchListState)
                 2 -> HistoryRoute(listState = historyListState)
-                3 -> com.ops.permissionmanager.SettingsRoute()
+                3 -> SettingsRoute()
             }
         }
 

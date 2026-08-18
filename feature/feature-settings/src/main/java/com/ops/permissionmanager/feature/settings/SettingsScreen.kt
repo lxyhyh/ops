@@ -1,4 +1,4 @@
-package com.ops.permissionmanager
+package com.ops.permissionmanager.feature.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

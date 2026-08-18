@@ -19,6 +19,10 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ops.permissionmanager.core.ui.OpsTheme
+import com.ops.permissionmanager.feature.settings.RootCheckViewModel
+import com.ops.permissionmanager.feature.settings.RootGuideScreen
+import com.ops.permissionmanager.feature.settings.SettingsRepository
+import com.ops.permissionmanager.feature.settings.ThemeMode
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 

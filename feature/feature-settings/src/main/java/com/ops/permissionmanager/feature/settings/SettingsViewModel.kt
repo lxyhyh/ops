@@ -1,5 +1,6 @@
-package com.ops.permissionmanager
+package com.ops.permissionmanager.feature.settings
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ops.permissionmanager.core.model.ModifyMode
@@ -7,6 +8,7 @@ import com.ops.permissionmanager.data.appops.ExecutionAvailability
 import com.ops.permissionmanager.data.appops.ModifyModeRepository
 import com.ops.permissionmanager.data.appops.ShizukuManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,23 +23,26 @@ import kotlinx.coroutines.launch
  * - uiState 由 MutableStateFlow.asStateFlow() 直接暴露（不用 combine/stateIn）；
  * - init 中四个独立常驻 collect 分别监听 themeMode / modifyMode / Shizuku Binder / 授权；
  * - checkAvailability 单独探测 Root 可用性写入 isRootAvailable。
+ *
+ * versionName 取当前应用包信息的版本号，与原版 BuildConfig.VERSION_NAME 等价
+ * （feature 模块拆出后不再直接引用 app 模块 BuildConfig）。
  */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val executionAvailability: ExecutionAvailability,
     private val modifyModeRepository: ModifyModeRepository,
-    private val shizukuManager: ShizukuManager
+    private val shizukuManager: ShizukuManager,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
         SettingsUiState(
             themeMode = settingsRepository.themeMode.value,
             modifyMode = modifyModeRepository.modifyMode.value,
-            versionName = BuildConfig.VERSION_NAME
+            versionName = versionName()
         )
     )
-
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
     init {
@@ -84,4 +89,9 @@ class SettingsViewModel @Inject constructor(
             _uiState.update { it.copy(isRootAvailable = available) }
         }
     }
+
+    /** 读取当前应用包版本号；异常时返回空串（与原版 BuildConfig.VERSION_NAME 同义）。 */
+    private fun versionName(): String = runCatching {
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName
+    }.getOrDefault("").orEmpty()
 }
