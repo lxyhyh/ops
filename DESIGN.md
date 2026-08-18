@@ -73,35 +73,37 @@ interface AppOpsRepository {
 ```
 
 **实现（大，藏在内部）：**
-- 命令构造（`cmd appops get/set` 的拼装与参数校验）
-- 调用 RootShell 执行命令
-- 调用 AppOpsParser 解析输出
+- 命令构造（`cmd appops get/set` 的拼装与包名校验，防命令注入）
+- 调用 `CommandExecutor`（注入的命令通道）执行命令
+- 调用 `AppOpsParser`（注入的解析器）解析输出
 - 错误处理（统一映射为 core-model 的 AppOpsError）
 - 并发控制与缓存（避免重复查询）
 
 **为什么是深模块**：调用者只需学会 3 个方法签名，就能获得"查看 + 修改 + 审计"完整能力。删除它，这些复杂度会重新出现在每个 ViewModel 里 → 物有所值。
 
-### 3.2 RootShell（适配器 Seam，位于 data-appops）
-
-**接口（小，1 个方法）：**
-```kotlin
-interface RootShell {
-    suspend fun execute(command: String): ShellResult   // 返回 stdout / stderr / exitCode
-}
-```
-
-**实现（大）：**
-- su 环境检测（兼容 Magisk / KernelSU / SuperSU 等不同 root 实现）
-- 命令执行、超时控制、流读取
-- 错误码映射
-
-**Seam 说明**：测试时注入 `FakeRootShell`（返回预设输出），生产用 `RealRootShell`。两个适配器 = 真实 Seam。
-
-### 3.3 AppOpsParser（纯函数 Seam，★最重要测试面★，位于 data-appops）
+### 3.2 命令执行抽象（适配器 Seam，位于 data-appops）
 
 **接口（小，2 个方法）：**
 ```kotlin
-object AppOpsParser {
+interface CommandExecutor {
+    suspend fun execute(command: String): ShellResult   // 返回 stdout / stderr / exitCode
+    suspend fun isAvailable(): Boolean                  // 该通道当前是否可用
+}
+```
+
+**两个适配器（真实 Seam）：**
+- `RootCommandExecutor`：su（Magisk / KernelSU / SuperSU 等不同 root 实现），超时控制 + 并发读流
+- `ShizukuCommandExecutor`：反射 Shizuku API，异常统一映射为 `AppOpsError.CommandFailed`，不裸抛反射异常
+
+**路由层 `CommandExecutorRouter`**：根据 `ModifyModeRepository` 的修改模式（AUTO / ROOT / SHIZUKU）在两者间选择，一次 select 数据源（Shizuku 可用性直接读 `ShizukuManager` 的 StateFlow，单一真相）。它同时实现 `ExecutionAvailability`，向上层解耦暴露"是否有可用通道"。
+
+**Seam 说明**：测试注入 `FakeCommandExecutor`，生产注入真实实现，接口不变。
+
+### 3.3 AppOpsParser（纯函数 Seam，★最重要测试面★，位于 data-appops）
+
+**接口（小，2 个方法，类可注入）：**
+```kotlin
+class AppOpsParser @Inject constructor() {
     fun parseGetOutput(raw: String): List<AppOpState>        // 解析 cmd appops get 输出
     fun parseHistoryOutput(raw: String): List<OpUsageRecord> // 解析 dumpsys appops 输出
 }
@@ -110,6 +112,9 @@ object AppOpsParser {
 **实现（大）：**
 - 不同 Android 版本（10 / 11 / 12 / 13+）输出格式差异适配
 - 容错解析（跳过无法识别的行，不整体崩溃）
+- 时间戳限量小数位 + 非法行容错，避免解析脆弱
+
+**可注入化**：作为构造依赖注入到 `RealAppOpsRepository`，不依赖解析器内部的日期格式单例，便于测试注入真实实现。
 
 **为什么最重要**：这是**纯函数**——不碰 root、不碰网络、无副作用。直接喂字符串、断言结果，是单元测试成本最低、收益最高的位置。命令输出格式差异是该项目最大的兼容性风险，全部集中在这里解决。
 
@@ -145,16 +150,16 @@ interface BatchOperationManager {
 - `OpUsageRecord`：单条权限使用记录（应用、权限、时间、次数）
 - `AppInfo`：应用信息（名称、图标、包名）
 
-**统一错误模型：**
+**统一错误模型（实际实现）：**
 ```kotlin
-sealed class AppOpsError {
-    object NoRoot : AppOpsError()                    // 无 root 权限
-    data class CommandFailed(val exitCode: Int) : AppOpsError()  // 命令执行失败
-    object OpNotFound : AppOpsError()                // 权限不存在
-    object InvalidPackage : AppOpsError()            // 包名非法
+sealed class AppOpsError : Exception() {
+    data class CommandFailed(
+        val exitCode: Int, val stderr: String = ""
+    ) : AppOpsError()          // 命令执行失败（含 Shizuku 反射失败映射）
+    data object InvalidPackage : AppOpsError()   // 包名非法/为空
 }
 ```
-界面层统一处理这几种错误，不各自散落判断逻辑。
+界面层用 `runCatching`/异常统一处理，不在各 ViewModel 散落判断逻辑；协程内 `CancellationException` 一律重新抛出，不吞取消。
 
 ---
 

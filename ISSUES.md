@@ -53,7 +53,7 @@
 
 ## Issue 2：修改单个应用权限
 
-- **状态**：待开始
+- **状态**：已完成（含批量复用 `setAppOp` seam）
 - **被谁阻塞**：Issue 1
 - **覆盖用户故事**：故事 2
 - **描述**：
@@ -121,3 +121,31 @@
 
 - 每个切片完成后应独立验证（编译通过 + 该切片验收标准满足）再进入下一个。
 - 若开发过程中发现 `cmd appops` 输出格式在特定 Android 版本有差异，记录到 Issue 对应切片并补充解析适配。
+
+---
+
+## 深度优化 / 多技能审查发现存档
+
+> 来源：2026-08-18 全量深度优化（vibe编码工作流 排序驱动：Issue分类 → 代码审查 → 代码设计 → 依赖治理 → 功能实现 → 性能优化 → 架构改进 → 测试策略 → 调试诊断 → 缺陷修复）
+
+### 已修复项（随提交落地）
+
+| 类别 | 发现 | 修复 |
+|------|------|------|
+| 安全 | `setAppOp` 包名未校验，存在命令注入风险 | `RealAppOpsRepository` 用 `PACKAGE_NAME_REGEX` 校验，非法抛 `InvalidPackage` |
+| 健壮性 | `ProcessRunner` 串行读 stdout/stderr 可能死锁 | 并发消费两个流 + 30s 超时 `destroyForcibly()` |
+| 并发 | ViewModel 吞掉 `CancellationException`，取消失效 | 统一 `catch (e: CancellationException) { throw e }`；批量循环加 `ensureActive()` |
+| 解析 | Parser 时间戳小数位不定、非法行致崩溃 | 限定 3 位小数 + 行级容错；Parser 改为可注入 class |
+| 架构 | app 层依赖具体 `CommandExecutorRouter`，耦合执行实现 | 抽出 `ExecutionAvailability` 接口，app 层只依赖可用性抽象；Shizuku 可用性以 `ShizukuManager` StateFlow 为单一真相 |
+| 架构 | `AppOpsParser` 单例 + 日期格式紧耦合 | 构造注入，测试与实际穿透同一 seam |
+| 性能 | 批量收集 `results` 时反复整体 copy，近似 O(n²) | 外部 `mutableList` 累积，仅更新进度 StateFlow |
+| 一致性 | 主题色硬编码，与 Material3 配色脱节 | 由 `colorScheme` 派生，明暗自适应 |
+| UI | Shizuku 反射异常裸崩 | 反射调用 try/catch，映射为 `CommandFailed` |
+
+### 真机验证待办（尚未在 root/Shizuku 真机执行）
+
+- Android 10 / 11 / 12 / 13+ 上 `cmd appops get` 与 `dumpsys appops` 输出格式差异适配是否齐全
+- Shizuku 授权 → 生效 → 修改权限的端到端流程
+- 批量操作长列表取消后的状态一致性
+- 权限历史记录页在真实 `dumpsys appops` 输出上的解析正确性
+- 设置页 Root / Shizuku / AUTO 三种模式切换的实际执行通道是否符合预期
