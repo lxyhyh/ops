@@ -1,7 +1,7 @@
 # 代码设计：OPS 权限管家（Android）
 
 > 来源：PRD.md + ISSUES.md
-> 日期：2026-08-17（v0.2 多模块版）
+> 日期：2026-08-17（v0.2 多模块版）；2026-08-19 同步对齐反编译后的执行层/解析层/批量实现描述
 > 设计方法：深模块 + Seam 接缝 + 接口即测试面 + 多模块工程
 
 ---
@@ -23,7 +23,7 @@ OPS权限管家（根工程）
 │   ├── core-model/           # 领域模型 + 统一错误模型（零依赖，被所有模块共享）
 │   └── core-ui/              # 主题、通用 UI 组件
 ├── data/
-│   ├── data-appops/          # ★权限数据核心★：AppOpsRepository + RootShell + AppOpsParser
+│   ├── data-appops/          # ★权限数据核心★：AppOpsRepository + CommandExecutor 家族 + AppOpsParser
 │   └── data-applist/         # 应用列表数据：AppListRepository
 └── feature/
     ├── feature-applist/      # 应用列表 + 应用详情（查看 / 修改权限）
@@ -95,7 +95,7 @@ interface CommandExecutor {
 - `RootCommandExecutor`：su（Magisk / KernelSU / SuperSU 等不同 root 实现），超时控制 + 并发读流
 - `ShizukuCommandExecutor`：反射 Shizuku API，异常统一映射为 `AppOpsError.CommandFailed`，不裸抛反射异常
 
-**路由层 `CommandExecutorRouter`**：根据 `ModifyModeRepository` 的修改模式（AUTO / ROOT / SHIZUKU）在两者间选择，一次 select 数据源（Shizuku 可用性直接读 `ShizukuManager` 的 StateFlow，单一真相）。它同时实现 `ExecutionAvailability`，向上层解耦暴露"是否有可用通道"。
+**路由层 `CommandExecutorRouter`**：根据 `ModifyModeRepository` 的修改模式（AUTO / ROOT / SHIZUKU）在两者间选择。与反编译对齐：构造仅注入 root/shizuku 执行器与模式仓库（不持有 ShizukuManager）；root/shizuku 可用性各带 5s TTL 的 `AvailabilityCache`（无锁快速路径 + 锁内二次检查）；AUTO 兜底 RootExecutor；`isAvailable` 透传所选执行器。它同时实现 `ExecutionAvailability`，向上层解耦暴露"是否有可用通道"。
 
 **Seam 说明**：测试注入 `FakeCommandExecutor`，生产注入真实实现，接口不变。
 
@@ -112,7 +112,8 @@ class AppOpsParser @Inject constructor() {
 **实现（大）：**
 - 不同 Android 版本（10 / 11 / 12 / 13+）输出格式差异适配
 - 容错解析（跳过无法识别的行，不整体崩溃）
-- 时间戳限量小数位 + 非法行容错，避免解析脆弱
+- 时间戳小数位不限（`\.\d+`，与反编译一致）；>3 位小数无法被 `[.SSS]` 格式器解析时跳过该条，不崩溃
+- `parseGetOutput` 不去重（与原版一致，去重由 RealAppOpsRepository 按 op.name 完成）；`parseHistoryOutput` 逐条保留 Access/Reject 记录
 
 **可注入化**：作为构造依赖注入到 `RealAppOpsRepository`，不依赖解析器内部的日期格式单例，便于测试注入真实实现。
 
@@ -128,15 +129,18 @@ interface AppListRepository {
 ```
 **实现**：封装 PackageManager 查询。浅模块，但职责单一，独立成 data-applist 便于与权限逻辑解耦。
 
-### 3.5 BatchOperationManager（位于 feature-batch）
+### 3.5 批量管理（位于 feature-batch）
 
-**接口（小）：**
+批量逻辑内聚在 `BatchViewModel`：
+
 ```kotlin
-interface BatchOperationManager {
-    fun runBatch(requests: List<BatchRequest>): Flow<BatchProgress>  // 进度流，支持取消
-}
+class BatchViewModel @Inject constructor(
+    private val appOpsRepository: AppOpsRepository,
+    ...
+) : ViewModel()
 ```
-**实现**：循环调用 AppOpsRepository.setAppOp，聚合进度与结果。复用核心 seam，不重复实现命令逻辑。
+
+内部对选中应用逐个调用 `AppOpsRepository.setAppOp` 聚合进度与结果（进度 StateFlow + 结果列表），复用核心 seam，不重复实现命令逻辑。
 
 ---
 
@@ -168,8 +172,8 @@ sealed class AppOpsError : Exception() {
 | 测试目标 | 所在模块 | 穿过哪个 Seam | 依赖 |
 |---------|---------|--------------|------|
 | AppOpsParser 解析（核心） | data-appops | 纯函数直接调用 | 无（纯 JVM 单测） |
-| AppOpsRepository 逻辑 | data-appops | 注入 FakeRootShell | FakeRootShell |
-| BatchOperationManager | feature-batch | 注入 Fake AppOpsRepository | Fake Repository |
+| AppOpsRepository 逻辑 | data-appops | 注入 Fake CommandExecutor（RecordingExecutor / ThrowingExecutor） | Fake CommandExecutor |
+| 批量逻辑 | feature-batch | 注入 Fake AppOpsRepository | Fake Repository |
 | ViewModel 状态流转 | 各 feature | 注入 Fake Repository | Fake Repository |
 | Compose UI | 各 feature | 注入 Fake Repository | Robolectric / 模拟器 |
 
@@ -183,9 +187,9 @@ sealed class AppOpsError : Exception() {
 |------|---------|-----------|------|-------------|
 | AppOpsRepository | 3 方法 | 高（命令+解析+错误+版本） | 深模块 | 删除后复杂度散落到各 ViewModel → 物有所值 |
 | AppOpsParser | 2 方法 | 高（版本适配） | 深模块 | 删除后解析逻辑散落 → 物有所值 |
-| RootShell | 1 方法 | 中（su 兼容） | 中等深度 | 保留 |
+| CommandExecutor / Router | 2 方法 / 多方法 | 中（su + Shizuku 适配 + 路由缓存） | 中等深度 | 保留 |
 | AppListRepository | 1 方法 | 低 | 浅模块 | 职责单一，保留 |
-| BatchOperationManager | 1 方法 | 中 | 中等深度 | 复用核心 seam，保留 |
+| BatchViewModel | — | 中 | 中等深度 | 复用核心 seam，保留 |
 
 ---
 
@@ -193,10 +197,10 @@ sealed class AppOpsError : Exception() {
 
 | Issue | 涉及模块 |
 |-------|---------|
-| 0 项目骨架 + Root 检测 | 根工程搭建、app、core-model、core-ui、data-appops 骨架（RootShell + Repository 接口） |
+| 0 项目骨架 + Root 检测 | 根工程搭建、app、core-model、core-ui、data-appops 骨架（CommandExecutor 家族 + Repository 接口） |
 | 1 应用列表 + 权限查看 | feature-applist、data-applist、data-appops（Parser.parseGetOutput + getAppOps） |
 | 2 修改单个权限 | feature-applist（详情页交互）、data-appops（setAppOp） |
-| 3 批量管理 | feature-batch（BatchOperationManager） |
+| 3 批量管理 | feature-batch（BatchViewModel，复用 AppOpsRepository.setAppOp） |
 | 4 历史记录 | feature-history、data-appops（Parser.parseHistoryOutput + getHistory） |
 | 5 收尾 | 全模块真机验证 |
 
