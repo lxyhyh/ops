@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -42,7 +43,11 @@ fun HistoryRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    Scaffold { padding ->
+    // 与原版一致：外层 MainScaffold 已处理状态栏内边距，这里必须跳过系统栏 inset，
+    // 否则顶部状态栏内边距会叠加两倍导致大面积空白。
+    Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+    ) { padding ->
         HistoryScreen(
             uiState = uiState,
             onRetry = viewModel::loadHistory,
