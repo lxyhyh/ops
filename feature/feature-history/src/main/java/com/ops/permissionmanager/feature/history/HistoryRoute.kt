@@ -20,7 +20,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,6 +33,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ops.permissionmanager.core.model.AppOpCatalog
 import com.ops.permissionmanager.core.model.OpUsageRecord
+import com.ops.permissionmanager.core.ui.CollapsingTitle
 import com.ops.permissionmanager.core.ui.ErrorState
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -94,36 +97,40 @@ fun HistoryScreen(
         }
         else -> {
             val grouped = uiState.records.groupBy { it.packageName }
-            LazyColumn(
-                state = listState,
-                modifier = modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = 16.dp,
-                    top = 8.dp,
-                    end = 16.dp,
-                    bottom = 120.dp
-                ),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                item(key = "header") {
-                    Column(Modifier.padding(top = 8.dp, bottom = 4.dp)) {
-                        Text(
-                            text = "历史",
-                            color = MaterialTheme.colorScheme.onBackground,
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.headlineMedium
-                        )
-                        Text(
-                            text = "共 ${uiState.records.size} 条记录",
-                            modifier = Modifier.padding(top = 2.dp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
+            // 与其它主页面（应用/批量）一致：标题使用 CollapsingTitle，
+            // 下滑时字体缩小并向中间移动，且固定在顶部不随列表滚走。
+            val collapsed by remember(listState) {
+                derivedStateOf {
+                    listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
                 }
-                grouped.forEach { (packageName, records) ->
-                    item(key = "card_$packageName") {
-                        HistoryGroupCard(packageName = packageName, records = records)
+            }
+            Column(modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                ) {
+                    CollapsingTitle(
+                        title = "历史",
+                        subtitle = "共 ${uiState.records.size} 条记录",
+                        collapsed = collapsed
+                    )
+                }
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        top = 8.dp,
+                        end = 16.dp,
+                        bottom = 120.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    grouped.forEach { (packageName, records) ->
+                        item(key = "card_$packageName") {
+                            HistoryGroupCard(packageName = packageName, records = records)
+                        }
                     }
                 }
             }
