@@ -1,5 +1,6 @@
 package com.ops.permissionmanager.feature.batch
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -56,6 +57,8 @@ import com.ops.permissionmanager.core.model.AppInfo
 import com.ops.permissionmanager.core.model.AppOp
 import com.ops.permissionmanager.core.model.AppOpCatalog
 import com.ops.permissionmanager.core.model.OpMode
+import com.ops.permissionmanager.core.ui.AppIcon
+import com.ops.permissionmanager.core.ui.AppTypeLabel
 import com.ops.permissionmanager.core.ui.CollapsingTitle
 import com.ops.permissionmanager.core.ui.ErrorState
 import com.ops.permissionmanager.core.ui.StatusChip
@@ -90,9 +93,7 @@ fun BatchRoute(
         )
         SnackbarHost(
             hostState = snackbarHostState,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 96.dp)
+            modifier = Modifier.align(Alignment.BottomCenter)
         )
     }
 }
@@ -124,7 +125,7 @@ fun BatchScreen(
             }
         }
         uiState.error != null -> {
-            ErrorState(message = "加载失败：${uiState.error}", onRetry = onRetry)
+            ErrorState(message = uiState.error, onRetry = onRetry)
         }
         else -> {
             Box(modifier.fillMaxSize()) {
@@ -132,14 +133,11 @@ fun BatchScreen(
                     CollapsingTitle(
                         title = "批量",
                         subtitle = null,
-                        collapsed = collapsed,
-                        modifier = Modifier.padding(horizontal = 16.dp)
+                        collapsed = collapsed
                     )
 
                     Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainer
@@ -172,7 +170,7 @@ fun BatchScreen(
                                         shape = RoundedCornerShape(10.dp),
                                         colors = FilterChipDefaults.filterChipColors(
                                             selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryFixed
                                         )
                                     )
                                 }
@@ -224,7 +222,7 @@ fun BatchScreen(
                     onCancel = onCancel,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(end = 20.dp, bottom = 96.dp)
+                        .padding(end = 20.dp, bottom = 76.dp)
                 )
             }
         }
@@ -253,8 +251,15 @@ private fun BatchFab(
                         else uiState.progress.toFloat() / uiState.total
                     CircularProgressIndicator(
                         progress = { fraction },
+                        modifier = Modifier.size(42.dp),
                         color = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(28.dp)
+                        strokeWidth = 3.dp,
+                        trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
+                    )
+                    Text(
+                        text = if (uiState.total == 0) "0%" else "${uiState.progress * 100 / uiState.total}%",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        style = MaterialTheme.typography.labelSmall
                     )
                 }
             }
@@ -268,10 +273,11 @@ private fun BatchFab(
                     .clickable(enabled = canExecute, onClick = onExecute)
             ) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = if (uiState.selectedPackages.isEmpty()) "执行" else "${uiState.selectedPackages.size}",
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        fontWeight = FontWeight.Bold
+                    Icon(
+                        imageVector = Icons.Filled.Done,
+                        contentDescription = "开始批量操作",
+                        modifier = Modifier.size(26.dp),
+                        tint = MaterialTheme.colorScheme.onPrimary
                     )
                 }
             }
@@ -296,27 +302,37 @@ private fun AppCheckRow(
     checked: Boolean,
     onToggle: () -> Unit
 ) {
+    val background = if (checked) {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+    } else {
+        MaterialTheme.colorScheme.surfaceContainer
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .background(background)
             .clickable(onClick = onToggle)
-            .padding(horizontal = 4.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Checkbox(checked = checked, onCheckedChange = { onToggle() })
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = app.appName,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = app.packageName,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        AppIcon(
+            packageName = app.packageName,
+            appName = app.appName,
+            size = 36.dp,
+            cornerRadius = 10.dp
+        )
+        Text(
+            text = app.appName,
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 12.dp),
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.bodyLarge
+        )
+        AppTypeLabel(isSystemApp = app.isSystemApp)
     }
 }
 
@@ -325,21 +341,18 @@ private fun ResultRow(result: BatchResultItem) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 10.dp),
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = result.appName,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = if (result.success) "操作已生效" else (result.message.ifBlank { "操作失败" }),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        Text(
+            text = result.appName,
+            modifier = Modifier.weight(1f),
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.bodyLarge
+        )
         StatusChip(
             text = if (result.success) "成功" else "失败",
             color = if (result.success) {

@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,14 +18,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -91,7 +94,7 @@ fun AppListScreen(
             }
         }
         uiState.error != null -> {
-            ErrorState(message = "加载失败：${uiState.error}", onRetry = onRetry)
+            ErrorState(message = uiState.error, onRetry = onRetry)
         }
         else -> {
             val filtered = uiState.apps.filter { app ->
@@ -107,25 +110,37 @@ fun AppListScreen(
             }
 
             Column(Modifier.fillMaxSize()) {
-                CollapsingTitle(
-                    title = "应用管理",
-                    subtitle = "共 ${filtered.size} 个应用",
-                    collapsed = collapsed,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                ) {
+                    CollapsingTitle(
+                        title = "应用",
+                        subtitle = "共 ${uiState.apps.size} 个应用",
+                        collapsed = collapsed
+                    )
+                    SearchBar(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it }
+                    )
+                    FilterChips(
+                        selected = selectedFilter,
+                        onSelect = { selectedFilter = it }
+                    )
+                }
 
-                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                    item {
-                        SearchBar(
-                            query = searchQuery,
-                            onQueryChange = { searchQuery = it }
-                        )
-                        FilterChips(
-                            selected = selectedFilter,
-                            onSelect = { selectedFilter = it },
-                            modifier = Modifier.padding(start = 16.dp, end = 16.dp)
-                        )
-                    }
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        top = 4.dp,
+                        end = 16.dp,
+                        bottom = 120.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     items(filtered, key = { it.packageName }) { app ->
                         AppListItem(
                             app = app,
@@ -145,8 +160,15 @@ private fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
         onValueChange = onQueryChange,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 2.dp),
-        placeholder = { Text("搜索应用", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+            .padding(vertical = 2.dp),
+        placeholder = { Text("搜索应用名称或包名", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Filled.Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
         singleLine = true,
         keyboardOptions = KeyboardOptions.Default,
         shape = RoundedCornerShape(14.dp),
@@ -164,11 +186,10 @@ private fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
 @Composable
 private fun FilterChips(
     selected: AppFilter,
-    onSelect: (AppFilter) -> Unit,
-    modifier: Modifier = Modifier
+    onSelect: (AppFilter) -> Unit
 ) {
     Row(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 2.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -181,7 +202,7 @@ private fun FilterChips(
                 shape = RoundedCornerShape(10.dp),
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryFixed
                 )
             )
         }
@@ -193,7 +214,6 @@ private fun AppListItem(app: AppInfo, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
             .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 4.dp, vertical = 8.dp),
@@ -210,12 +230,16 @@ private fun AppListItem(app: AppInfo, onClick: () -> Unit) {
                 text = app.appName,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = app.packageName,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
         AppTypeLabel(isSystemApp = app.isSystemApp)

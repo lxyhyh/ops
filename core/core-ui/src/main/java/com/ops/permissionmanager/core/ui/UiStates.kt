@@ -2,6 +2,7 @@ package com.ops.permissionmanager.core.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,7 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,12 +31,15 @@ fun ErrorState(
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = message,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = "加载失败：$message"
             )
-            TextButton(onClick = onRetry) {
-                Text(text = "重试", color = MaterialTheme.colorScheme.primary)
-            }
+            Text(
+                text = "重试",
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .clickable(onClick = onRetry),
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }

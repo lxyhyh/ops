@@ -150,7 +150,7 @@ private fun MainScaffold(onAppClick: (String, String) -> Unit) {
                 0 -> AppListRoute(onAppClick = onAppClick, listState = appListState)
                 1 -> BatchRoute(listState = batchListState)
                 2 -> HistoryRoute(listState = historyListState)
-                3 -> Column { com.ops.permissionmanager.SettingsRoute() }
+                3 -> com.ops.permissionmanager.SettingsRoute()
             }
         }
 
@@ -162,7 +162,8 @@ private fun MainScaffold(onAppClick: (String, String) -> Unit) {
                 .navigationBarsPadding()
                 .padding(bottom = 12.dp),
             shape = RoundedCornerShape(50),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f)
+            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
+            shadowElevation = 8.dp
         ) {
             BoxWithConstraints(Modifier.fillMaxWidth().padding(4.dp)) {
                 val f = maxWidth / topLevelDestinations.size

@@ -10,11 +10,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -27,7 +28,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -40,8 +40,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -52,14 +52,10 @@ import com.ops.permissionmanager.core.model.OpMode
 import com.ops.permissionmanager.core.ui.ErrorState
 import com.ops.permissionmanager.core.ui.StatusChip
 
-/** 顶栏底部大圆角。 */
-private val TopBarRadius = 24.dp
 /** 权限分组大圆角卡片。 */
 private val GroupCardRadius = 20.dp
 /** 模式选择弹窗圆角。 */
 private val DialogRadius = 24.dp
-/** 模式选中项胶囊圆角。 */
-private val ModeCapsuleRadius = 50.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,9 +77,26 @@ fun AppDetailRoute(
 
     Scaffold(
         topBar = {
-            FrostedTopBar(
-                title = uiState.appName.ifEmpty { packageName },
-                onBack = onBack
+            TopAppBar(
+                title = {
+                    Text(
+                        text = uiState.appName,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "返回"
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    titleContentColor = MaterialTheme.colorScheme.background
+                )
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -94,54 +107,6 @@ fun AppDetailRoute(
             onRetry = viewModel::load,
             modifier = Modifier.padding(padding)
         )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun FrostedTopBar(
-    title: String,
-    onBack: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val shape = RoundedCornerShape(
-        bottomStart = TopBarRadius,
-        bottomEnd = TopBarRadius
-    )
-    Box(modifier.fillMaxWidth()) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .clip(shape)
-                .background(
-                    color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.6f),
-                    shape = shape
-                )
-                .blur(18.dp)
-        )
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = shape,
-            color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.9f),
-            shadowElevation = 0.dp
-        ) {
-            TopAppBar(
-                title = { Text(title) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回"
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0f),
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            )
-        }
     }
 }
 
@@ -161,25 +126,38 @@ fun AppDetailScreen(
             }
         }
         uiState.error != null -> {
-            ErrorState(message = "加载失败：${uiState.error}", onRetry = onRetry)
+            ErrorState(message = uiState.error, onRetry = onRetry)
         }
         else -> {
             val state = uiState.appOps
             if (state == null || state.states.isEmpty()) {
                 Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "未获取到权限数据",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Text(text = "未获取到权限数据")
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    item(key = "subtitle") {
+                        Column {
+                            Text(
+                                text = uiState.appName,
+                                color = MaterialTheme.colorScheme.onBackground,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.headlineMedium
+                            )
+                            Text(
+                                text = state.packageName,
+                                modifier = Modifier.padding(top = 2.dp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
                     state.grouped.forEach { (group, items) ->
-                        item(key = "group_${group.name}") {
+                        item(key = "card_${group.name}") {
                             AppGroupCard(
                                 group = group,
                                 items = items,
@@ -224,7 +202,7 @@ private fun AppGroupCard(
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
             )
             items.forEachIndexed { index, opState ->
                 AppOpRow(
@@ -247,26 +225,38 @@ private fun AppOpRow(
     opState: AppOpState,
     onClick: () -> Unit
 ) {
+    val (labelText, labelColor) = when (opState.mode) {
+        OpMode.ALLOW -> "允许" to MaterialTheme.colorScheme.primary
+        OpMode.DENY -> "拒绝" to MaterialTheme.colorScheme.error
+        OpMode.IGNORE -> "忽略" to MaterialTheme.colorScheme.error
+        else -> opState.mode.displayName to MaterialTheme.colorScheme.onSurfaceVariant
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = opState.op.displayName,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Medium,
             modifier = Modifier.weight(1f)
         )
         StatusChip(
-            text = opState.mode.displayName,
-            color = when (opState.mode) {
-                OpMode.ALLOW -> MaterialTheme.colorScheme.primary
-                OpMode.DENY, OpMode.IGNORE -> MaterialTheme.colorScheme.error
-                else -> MaterialTheme.colorScheme.onSurfaceVariant
-            }
+            text = labelText,
+            color = labelColor
+        )
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            modifier = Modifier
+                .size(18.dp)
+                .padding(start = 4.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
         )
     }
 }
@@ -279,58 +269,54 @@ private fun ModePickerDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(opState.op.displayName) },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        },
+        title = {
+            Text(
+                text = opState.op.displayName,
+                fontWeight = FontWeight.Bold
+            )
+        },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column {
                 Text(
                     text = "修改可能导致应用异常，请谨慎操作",
-                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 12.dp),
                     color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    style = MaterialTheme.typography.bodySmall
                 )
                 OpMode.entries.forEach { mode ->
-                    val selected = mode == opState.mode
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(ModeCapsuleRadius))
-                            .background(
-                                color = if (selected) {
-                                    MaterialTheme.colorScheme.primaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.surface.copy(alpha = 0f)
-                                },
-                                shape = RoundedCornerShape(ModeCapsuleRadius)
-                            )
+                            .clip(RoundedCornerShape(12.dp))
                             .clickable { onSelect(mode) }
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                            .padding(horizontal = 8.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = mode.displayName,
                             style = MaterialTheme.typography.bodyLarge,
-                            color = if (selected) {
-                                MaterialTheme.colorScheme.onPrimaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurface
-                            },
                             modifier = Modifier.weight(1f)
                         )
-                        if (selected) {
+                        if (mode == opState.mode) {
                             Text(
                                 text = "当前",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                fontWeight = FontWeight.Medium
+                                modifier = Modifier
+                                    .background(
+                                        color = MaterialTheme.colorScheme.primaryContainer,
+                                        shape = RoundedCornerShape(6.dp)
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.labelMedium
                             )
                         }
                     }
                 }
             }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
         },
         shape = RoundedCornerShape(DialogRadius)
     )
