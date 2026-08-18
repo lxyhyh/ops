@@ -1,6 +1,7 @@
 package com.ops.permissionmanager.data.appops
 
 import com.ops.permissionmanager.core.model.OpMode
+import com.ops.permissionmanager.core.model.OpUsageRecord
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -103,20 +104,29 @@ class AppOpsParserTest {
     @Test
     fun `parseHistoryOutput 解析历史记录`() {
         val raw = """
+            Recent:
+              Package com.example.app:
+                RUN_IN_BACKGROUND (default):
+                  Access: 2026-08-17 10:00:00.123
+                  Reject: 2026-08-17 08:00:00.000
+                READ_CLIPBOARD (allow):
+                  Access: 2026-08-17 09:00:00.000
+              Package com.other.app:
+                CAMERA (deny):
+                  Reject: 2026-08-17 06:00:00.000
             Uid 10001: com.example.app
-              RUN_IN_BACKGROUND:
-                allow: 2026-08-17 10:00:00.123 (recent)
-              Historical AppOps (since boot):
-                RUN_IN_BACKGROUND:
-                  allow: 2026-08-17 08:00:00.000 (recent)
         """.trimIndent()
 
         val records = AppOpsParser.parseHistoryOutput(raw)
 
-        // 只有 Historical AppOps 部分之后的记录被解析
-        assertEquals(1, records.size)
+        assertEquals(3, records.size)
         assertEquals("com.example.app", records[0].packageName)
         assertEquals("RUN_IN_BACKGROUND", records[0].opName)
+        assertEquals(OpUsageRecord("com.example.app", "RUN_IN_BACKGROUND", 0).copy(timestampMillis = records[0].timestampMillis), records[0])
+        assertEquals("com.example.app", records[1].packageName)
+        assertEquals("READ_CLIPBOARD", records[1].opName)
+        assertEquals("com.other.app", records[2].packageName)
+        assertEquals("CAMERA", records[2].opName)
         assertTrue(records[0].timestampMillis > 0)
     }
 

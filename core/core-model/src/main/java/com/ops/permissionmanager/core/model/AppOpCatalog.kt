@@ -1,17 +1,13 @@
-package com.ops.permissionmanager.data.appops
-
-import com.ops.permissionmanager.core.model.AppOp
-import com.ops.permissionmanager.core.model.OpGroup
+package com.ops.permissionmanager.core.model
 
 /**
- * AppOps 操作清单，覆盖 Android 系统（AOSP）定义的全部常用操作。
- * 名称对应 cmd appops 命令输出的 op 标识（如 FINE_LOCATION、READ_CLIPBOARD 等）。
- * 不在清单中的操作仍会被解析展示（显示原始名称），保证不遗漏系统返回的任何权限。
+ * 全部可管理的 AppOps 操作目录。
+ *
+ * 提供按名称查找与枚举全部操作项的能力。
  */
 object AppOpCatalog {
 
     private val catalog: List<AppOp> = listOf(
-        // 后台运行
         AppOp("RUN_IN_BACKGROUND", "后台运行", OpGroup.BACKGROUND),
         AppOp("RUN_ANY_IN_BACKGROUND", "任意后台运行", OpGroup.BACKGROUND),
         AppOp("START_FOREGROUND", "启动前台服务", OpGroup.BACKGROUND),
@@ -23,7 +19,7 @@ object AppOpCatalog {
         AppOp("INSTANT_APP_START_FOREGROUND", "即时应用启动前台", OpGroup.BACKGROUND),
         AppOp("AUTO_REVOKE_PERMISSIONS_IF_UNUSED", "自动撤销未用权限", OpGroup.BACKGROUND),
         AppOp("AUTO_REVOKE_MANAGED_BY_INSTALLER", "安装器管理自动撤销", OpGroup.BACKGROUND),
-        // 隐私
+
         AppOp("READ_CLIPBOARD", "读取剪贴板", OpGroup.PRIVACY),
         AppOp("WRITE_CLIPBOARD", "写入剪贴板", OpGroup.PRIVACY),
         AppOp("GET_USAGE_STATS", "读取应用使用情况", OpGroup.PRIVACY),
@@ -48,7 +44,7 @@ object AppOpCatalog {
         AppOp("RECEIVE_SENSITIVE_NOTIFICATIONS", "接收敏感通知", OpGroup.PRIVACY),
         AppOp("RAPID_CLEAR_NOTIFICATIONS_BY_LISTENER", "快速清除通知", OpGroup.PRIVACY),
         AppOp("READ_WIFI_STATE", "读取 WiFi 状态", OpGroup.PRIVACY),
-        // 定位
+
         AppOp("FINE_LOCATION", "精确定位", OpGroup.LOCATION),
         AppOp("COARSE_LOCATION", "粗略定位", OpGroup.LOCATION),
         AppOp("GPS", "使用 GPS", OpGroup.LOCATION),
@@ -63,12 +59,12 @@ object AppOpCatalog {
         AppOp("WIFI_SCAN", "WiFi 扫描", OpGroup.LOCATION),
         AppOp("ACTIVITY_RECOGNITION", "活动识别", OpGroup.LOCATION),
         AppOp("ACTIVITY_RECOGNITION_SOURCE", "活动识别来源", OpGroup.LOCATION),
-        // 联系人
+
         AppOp("READ_CONTACTS", "读取联系人", OpGroup.CONTACTS),
         AppOp("WRITE_CONTACTS", "写入联系人", OpGroup.CONTACTS),
         AppOp("READ_CALENDAR", "读取日历", OpGroup.CONTACTS),
         AppOp("WRITE_CALENDAR", "写入日历", OpGroup.CONTACTS),
-        // 电话
+
         AppOp("READ_PHONE_STATE", "读取手机状态", OpGroup.PHONE),
         AppOp("READ_PHONE_NUMBERS", "读取手机号码", OpGroup.PHONE),
         AppOp("READ_CALL_LOG", "读取通话记录", OpGroup.PHONE),
@@ -83,7 +79,7 @@ object AppOpCatalog {
         AppOp("PHONE_CALL_CAMERA", "通话相机", OpGroup.PHONE),
         AppOp("RECORD_INCOMING_PHONE_AUDIO", "录制来电音频", OpGroup.PHONE),
         AppOp("ACCEPT_HANDOVER", "接受通话切换", OpGroup.PHONE),
-        // 短信
+
         AppOp("READ_SMS", "读取短信", OpGroup.SMS),
         AppOp("WRITE_SMS", "写入短信", OpGroup.SMS),
         AppOp("RECEIVE_SMS", "接收短信", OpGroup.SMS),
@@ -94,7 +90,7 @@ object AppOpCatalog {
         AppOp("SEND_SMS", "发送短信", OpGroup.SMS),
         AppOp("READ_ICC_SMS", "读取 SIM 短信", OpGroup.SMS),
         AppOp("WRITE_ICC_SMS", "写入 SIM 短信", OpGroup.SMS),
-        // 媒体
+
         AppOp("READ_MEDIA_IMAGES", "读取图片", OpGroup.MEDIA),
         AppOp("WRITE_MEDIA_IMAGES", "写入图片", OpGroup.MEDIA),
         AppOp("READ_MEDIA_VIDEO", "读取视频", OpGroup.MEDIA),
@@ -110,7 +106,7 @@ object AppOpCatalog {
         AppOp("PLAY_AUDIO", "播放音频", OpGroup.MEDIA),
         AppOp("CONTROL_AUDIO", "控制音频", OpGroup.MEDIA),
         AppOp("CONTROL_AUDIO_PARTIAL", "部分控制音频", OpGroup.MEDIA),
-        // 音频
+
         AppOp("RECORD_AUDIO", "录音", OpGroup.AUDIO),
         AppOp("RECORD_AUDIO_HOTWORD", "唤醒词录音", OpGroup.AUDIO),
         AppOp("RECORD_AUDIO_OUTPUT", "录制音频输出", OpGroup.AUDIO),
@@ -128,20 +124,20 @@ object AppOpCatalog {
         AppOp("AUDIO_BLUETOOTH_VOLUME", "蓝牙音量", OpGroup.AUDIO),
         AppOp("AUDIO_MASTER_VOLUME", "主音量", OpGroup.AUDIO),
         AppOp("AUDIO_ACCESSIBILITY_VOLUME", "无障碍音量", OpGroup.AUDIO),
-        // 通知
+
         AppOp("POST_NOTIFICATION", "发送通知", OpGroup.NOTIFICATION),
         AppOp("READ_NOTIFICATIONS", "读取通知", OpGroup.NOTIFICATION),
         AppOp("ACCESS_NOTIFICATIONS", "访问通知", OpGroup.NOTIFICATION),
         AppOp("USE_FULL_SCREEN_INTENT", "全屏通知", OpGroup.NOTIFICATION),
         AppOp("SYSTEM_EXEMPT_FROM_DISMISSIBLE_NOTIFICATIONS", "免于通知折叠", OpGroup.NOTIFICATION),
-        // 传感器
+
         AppOp("CAMERA", "相机", OpGroup.SENSOR),
         AppOp("CAMERA_SANDBOXED", "沙盒相机", OpGroup.SENSOR),
         AppOp("VIBRATE", "振动", OpGroup.SENSOR),
         AppOp("BODY_SENSORS", "身体传感器", OpGroup.SENSOR),
         AppOp("USE_FINGERPRINT", "使用指纹", OpGroup.SENSOR),
         AppOp("USE_BIOMETRIC", "使用生物识别", OpGroup.SENSOR),
-        // 电量
+
         AppOp("WAKE_LOCK", "唤醒锁", OpGroup.BATTERY),
         AppOp("KEEP_SCREEN_ON", "保持屏幕常亮", OpGroup.BATTERY),
         AppOp("TURN_SCREEN_ON", "点亮屏幕", OpGroup.BATTERY),
@@ -153,7 +149,7 @@ object AppOpCatalog {
         AppOp("SYSTEM_EXEMPT_FROM_HIBERNATION", "免于休眠", OpGroup.BATTERY),
         AppOp("SYSTEM_EXEMPT_FROM_SUSPENSION", "免于挂起", OpGroup.BATTERY),
         AppOp("SYSTEM_EXEMPT_FROM_ACTIVITY_BG_START_RESTRICTION", "免于后台启动限制", OpGroup.BATTERY),
-        // 存储
+
         AppOp("READ_EXTERNAL_STORAGE", "读取外部存储", OpGroup.STORAGE),
         AppOp("WRITE_EXTERNAL_STORAGE", "写入外部存储", OpGroup.STORAGE),
         AppOp("LEGACY_STORAGE", "传统存储模式", OpGroup.STORAGE),
@@ -161,11 +157,11 @@ object AppOpCatalog {
         AppOp("MANAGE_EXTERNAL_STORAGE", "管理所有文件", OpGroup.STORAGE),
         AppOp("ARCHIVE_ICON_OVERLAY", "归档图标", OpGroup.STORAGE),
         AppOp("UNARCHIVAL_CONFIRMATION", "取消归档确认", OpGroup.STORAGE),
-        // 蓝牙
+
         AppOp("BLUETOOTH_SCAN", "蓝牙扫描", OpGroup.BLUETOOTH),
         AppOp("BLUETOOTH_CONNECT", "蓝牙连接", OpGroup.BLUETOOTH),
         AppOp("BLUETOOTH_ADVERTISE", "蓝牙广播", OpGroup.BLUETOOTH),
-        // 系统
+
         AppOp("SYSTEM_ALERT_WINDOW", "悬浮窗", OpGroup.SYSTEM),
         AppOp("WRITE_SETTINGS", "修改系统设置", OpGroup.SYSTEM),
         AppOp("REQUEST_INSTALL_PACKAGES", "安装未知应用", OpGroup.SYSTEM),
@@ -186,13 +182,19 @@ object AppOpCatalog {
         AppOp("INTERACT_ACROSS_PROFILES", "跨用户资料交互", OpGroup.SYSTEM),
         AppOp("INTERACT_ACROSS_USERS", "跨用户交互", OpGroup.SYSTEM),
         AppOp("CAPTURE_CONSENTLESS_BUGREPORT_ON_USERDEBUG_BUILD", "无同意捕获错误报告", OpGroup.SYSTEM),
-        // 其他
+
         AppOp("OP_RESERVED_FOR_TESTING", "保留测试操作", OpGroup.OTHER)
     )
 
     private val byName: Map<String, AppOp> = catalog.associateBy { it.name }
 
+    /**
+     * 根据操作名查找，未找到返回 [null]。
+     */
     fun find(name: String): AppOp? = byName[name]
 
+    /**
+     * 返回全部操作项。
+     */
     fun all(): List<AppOp> = catalog
 }

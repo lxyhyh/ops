@@ -17,20 +17,20 @@
 
 ---
 
-## Issue 0：项目骨架 + Root 环境检测与引导
+## Issue 0：项目骨架 + Root/权限环境检测与引导
 
-- **状态**：待开始
+- **状态**：已完成（2026-08-18 v0.2：重构为多执行器架构，支持 Root（su）与 Shizuku（ADB）两种修改方式，自动选择可用方式；新增设置页含主题切换）
 - **被谁阻塞**：无（最先执行）
 - **覆盖用户故事**：故事 5
 - **描述**：
   - 搭建 Android 项目（Kotlin + Jetpack Compose + Material 3 + MVVM 架构）
-  - 建立 `RootShell` 模块：封装 su 命令执行，检测 root 环境
+  - 建立命令执行抽象 `CommandExecutor` 与路由层 `CommandExecutorRouter`：封装 su 与 Shizuku 执行，检测权限环境
   - 建立 `AppOpsRepository` 接口与实现骨架（核心 seam，命令执行与输出解析分离）
-  - 无 root 设备时显示引导界面（说明如何获取 root），不崩溃
+  - 无可用权限方式时显示引导界面（说明如何获取 root / Shizuku），不崩溃
 - **验收标准**：
   - 项目可在 Android Studio 中编译通过
-  - 无 root 设备上启动显示引导界面，不崩溃
-  - 有 root 设备上能检测到 root 并进入主界面
+  - 无权限设备上启动显示引导界面，不崩溃
+  - 有 root 或 Shizuku 设备上能检测到并进入主界面
 
 ---
 

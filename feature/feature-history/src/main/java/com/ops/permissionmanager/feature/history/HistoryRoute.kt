@@ -23,8 +23,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ops.permissionmanager.core.model.AppOpCatalog
 import com.ops.permissionmanager.core.model.OpUsageRecord
-import com.ops.permissionmanager.data.appops.AppOpCatalog
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

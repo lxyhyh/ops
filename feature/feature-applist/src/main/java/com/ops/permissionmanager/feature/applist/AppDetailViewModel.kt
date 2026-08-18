@@ -20,7 +20,8 @@ data class AppDetailUiState(
     val isLoading: Boolean = true,
     val appOps: AppOpsState? = null,
     val error: String? = null,
-    val message: String? = null
+    val message: String? = null,
+    val appName: String = ""
 )
 
 @HiltViewModel
@@ -30,11 +31,13 @@ class AppDetailViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val packageName: String = savedStateHandle.get<String>("packageName").orEmpty()
+    private val appName: String = savedStateHandle.get<String>("appName").orEmpty()
 
     private val _uiState = MutableStateFlow(AppDetailUiState())
     val uiState: StateFlow<AppDetailUiState> = _uiState.asStateFlow()
 
     init {
+        _uiState.update { it.copy(appName = appName) }
         load()
     }
 

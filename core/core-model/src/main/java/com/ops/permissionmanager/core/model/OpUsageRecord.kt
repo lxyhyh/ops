@@ -1,6 +1,14 @@
 package com.ops.permissionmanager.core.model
 
-/** 单条权限使用记录（来自 dumpsys appops 历史）。 */
+/**
+ * 一次 AppOps 的使用/操作记录。
+ *
+ * @property packageName 应用包名
+ * @property opName 操作名
+ * @property timestampMillis 时间戳（毫秒）
+ * @property durationMillis 持续时长（毫秒），可为空
+ * @property count 出现次数
+ */
 data class OpUsageRecord(
     val packageName: String,
     val opName: String,

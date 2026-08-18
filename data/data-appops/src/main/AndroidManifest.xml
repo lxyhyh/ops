@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- v11 之前版本通过启动 Shizuku 管理器应用（moe.shizuku.privileged.api）引导授权，
+         需要声明对该应用的可见性查询。 -->
+    <queries>
+        <package android:name="moe.shizuku.privileged.api" />
+    </queries>
+
+</manifest>

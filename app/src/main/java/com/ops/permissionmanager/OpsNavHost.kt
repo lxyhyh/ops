@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -33,8 +34,9 @@ private data class TopLevelDestination(
 
 private val topLevelDestinations = listOf(
     TopLevelDestination("app_list", "应用", Icons.Filled.Apps),
-    TopLevelDestination("batch", "批量", Icons.Filled.Settings),
-    TopLevelDestination("history", "历史", Icons.Filled.History)
+    TopLevelDestination("batch", "批量", Icons.Filled.List),
+    TopLevelDestination("history", "历史", Icons.Filled.History),
+    TopLevelDestination("settings", "设置", Icons.Filled.Settings)
 )
 
 @Composable
@@ -88,6 +90,7 @@ fun OpsNavHost(modifier: Modifier = Modifier) {
             }
             composable("batch") { BatchRoute() }
             composable("history") { HistoryRoute() }
+            composable("settings") { SettingsRoute() }
         }
     }
 }

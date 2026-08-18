@@ -37,8 +37,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ops.permissionmanager.core.model.AppInfo
 import com.ops.permissionmanager.core.model.AppOp
+import com.ops.permissionmanager.core.model.AppOpCatalog
 import com.ops.permissionmanager.core.model.OpMode
-import com.ops.permissionmanager.data.appops.AppOpCatalog
 
 @Composable
 fun BatchRoute(viewModel: BatchViewModel = hiltViewModel()) {
