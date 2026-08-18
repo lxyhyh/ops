@@ -1,17 +1,14 @@
 package com.ops.permissionmanager.feature.applist
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -25,12 +22,10 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,15 +42,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ops.permissionmanager.core.model.AppInfo
 import com.ops.permissionmanager.core.ui.AppIcon
 import com.ops.permissionmanager.core.ui.AppTypeLabel
+import com.ops.permissionmanager.core.ui.CollapsingTitle
 import com.ops.permissionmanager.core.ui.ErrorState
 import androidx.lifecycle.compose.LifecycleResumeEffect
 
-/**
- * 应用列表入口（导航目标）。
- *
- * @param onAppClick 点击某项回调，参数依次为包名、应用名
- * @param listState 由外部（顶层 Pager）传入的滚动状态，翻页时保留位置
- */
 @Composable
 fun AppListRoute(
     onAppClick: (String, String) -> Unit,
@@ -79,11 +69,6 @@ fun AppListRoute(
     )
 }
 
-/**
- * 应用列表页。
- *
- * 含搜索框、筛选条（所有应用 / 系统应用 / 用户应用）与带图标的应用列表。
- */
 @Composable
 fun AppListScreen(
     uiState: AppListUiState,
@@ -121,46 +106,38 @@ fun AppListScreen(
                     )
             }
 
-            LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                item {
-                    if (!collapsed) {
-                        Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-                            Text(
-                                text = "应用管理",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(top = 8.dp)
-                            )
-                            Text(
-                                text = "共 ${filtered.size} 个应用",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+            Column(Modifier.fillMaxSize()) {
+                CollapsingTitle(
+                    title = "应用管理",
+                    subtitle = "共 ${filtered.size} 个应用",
+                    collapsed = collapsed,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                    item {
+                        SearchBar(
+                            query = searchQuery,
+                            onQueryChange = { searchQuery = it }
+                        )
+                        FilterChips(
+                            selected = selectedFilter,
+                            onSelect = { selectedFilter = it },
+                            modifier = Modifier.padding(start = 16.dp, end = 16.dp)
+                        )
                     }
-                    Spacer(Modifier.size(8.dp))
-                    SearchBar(
-                        query = searchQuery,
-                        onQueryChange = { searchQuery = it }
-                    )
-                    FilterChips(
-                        selected = selectedFilter,
-                        onSelect = { selectedFilter = it },
-                        modifier = Modifier.padding(start = 16.dp, end = 16.dp)
-                    )
-                }
-                items(filtered, key = { it.packageName }) { app ->
-                    AppListItem(
-                        app = app,
-                        onClick = { onAppClick(app.packageName, app.appName) }
-                    )
+                    items(filtered, key = { it.packageName }) { app ->
+                        AppListItem(
+                            app = app,
+                            onClick = { onAppClick(app.packageName, app.appName) }
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-/** 搜索框：圆角 14，底色 surfaceContainerHigh，无下划线。 */
 @Composable
 private fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
     TextField(
@@ -184,7 +161,6 @@ private fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
     )
 }
 
-/** 筛选条：每个筛选项为圆角 10 的 FilterChip，选中底色 primaryContainer。 */
 @Composable
 private fun FilterChips(
     selected: AppFilter,

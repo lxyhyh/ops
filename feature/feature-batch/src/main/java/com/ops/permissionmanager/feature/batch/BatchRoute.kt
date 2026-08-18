@@ -1,28 +1,40 @@
 package com.ops.permissionmanager.feature.batch
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.Button
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -30,9 +42,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -41,6 +56,9 @@ import com.ops.permissionmanager.core.model.AppInfo
 import com.ops.permissionmanager.core.model.AppOp
 import com.ops.permissionmanager.core.model.AppOpCatalog
 import com.ops.permissionmanager.core.model.OpMode
+import com.ops.permissionmanager.core.ui.CollapsingTitle
+import com.ops.permissionmanager.core.ui.ErrorState
+import com.ops.permissionmanager.core.ui.StatusChip
 
 @Composable
 fun BatchRoute(
@@ -57,7 +75,7 @@ fun BatchRoute(
         }
     }
 
-    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
+    Box(Modifier.fillMaxSize()) {
         BatchScreen(
             uiState = uiState,
             listState = listState,
@@ -68,8 +86,13 @@ fun BatchRoute(
             onSelectMode = viewModel::selectMode,
             onExecute = viewModel::executeBatch,
             onCancel = viewModel::cancelBatch,
-            onRetry = viewModel::loadApps,
-            modifier = Modifier.padding(padding)
+            onRetry = viewModel::loadApps
+        )
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 96.dp)
         )
     }
 }
@@ -88,6 +111,12 @@ fun BatchScreen(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val collapsed by remember(listState) {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
+        }
+    }
+
     when {
         uiState.isLoading -> {
             Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -95,110 +124,155 @@ fun BatchScreen(
             }
         }
         uiState.error != null -> {
-            Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("加载失败：${uiState.error}")
-                    Text(
-                        "重试",
-                        color = MaterialTheme.colorScheme.primary,
+            ErrorState(message = "加载失败：${uiState.error}", onRetry = onRetry)
+        }
+        else -> {
+            Box(modifier.fillMaxSize()) {
+                Column(Modifier.fillMaxSize()) {
+                    CollapsingTitle(
+                        title = "批量",
+                        subtitle = null,
+                        collapsed = collapsed,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+
+                    Card(
                         modifier = Modifier
-                            .padding(top = 8.dp)
-                            .clickable { onRetry() }
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer
+                        ),
+                        elevation = CardDefaults.cardElevation(0.dp)
+                    ) {
+                        Column {
+                            SectionHeader("选择权限")
+                            OpSelector(
+                                selectedOp = uiState.selectedOp,
+                                onSelectOp = onSelectOp
+                            )
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
+                            SectionHeader("目标状态")
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                OpMode.entries.forEach { mode ->
+                                    FilterChip(
+                                        selected = uiState.selectedMode == mode,
+                                        onClick = { onSelectMode(mode) },
+                                        label = { Text(mode.displayName) },
+                                        shape = RoundedCornerShape(10.dp),
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.height(8.dp))
+                        }
+                    }
+
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 120.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        item {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "选择应用（已选 ${uiState.selectedPackages.size}）",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                TextButton(onClick = onSelectAll) { Text("全选") }
+                                TextButton(onClick = onClearSelection) { Text("清空") }
+                            }
+                        }
+                        items(uiState.apps, key = { it.packageName }) { app ->
+                            AppCheckRow(
+                                app = app,
+                                checked = app.packageName in uiState.selectedPackages,
+                                onToggle = { onToggleApp(app.packageName) }
+                            )
+                        }
+                        items(uiState.results) { result ->
+                            ResultRow(result)
+                        }
+                    }
+                }
+
+                BatchFab(
+                    uiState = uiState,
+                    onExecute = onExecute,
+                    onCancel = onCancel,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 20.dp, bottom = 96.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BatchFab(
+    uiState: BatchUiState,
+    onExecute: () -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier.size(56.dp), contentAlignment = Alignment.TopStart) {
+        if (uiState.isExecuting) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(onClick = onCancel)
+            ) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    val fraction =
+                        if (uiState.total == 0) 0f
+                        else uiState.progress.toFloat() / uiState.total
+                    CircularProgressIndicator(
+                        progress = { fraction },
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(28.dp)
                     )
                 }
             }
-        }
-        else -> {
-            LazyColumn(state = listState, modifier = modifier.fillMaxSize()) {
-                item { SectionHeader("选择权限") }
-                item {
-                    OpSelector(
-                        selectedOp = uiState.selectedOp,
-                        onSelectOp = onSelectOp
+        } else {
+            val canExecute = uiState.selectedOp != null && uiState.selectedPackages.isNotEmpty()
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = if (canExecute) 1f else 0.4f),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(enabled = canExecute, onClick = onExecute)
+            ) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = if (uiState.selectedPackages.isEmpty()) "执行" else "${uiState.selectedPackages.size}",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontWeight = FontWeight.Bold
                     )
-                }
-
-                item { SectionHeader("目标状态") }
-                item {
-                    Row(Modifier.padding(horizontal = 16.dp)) {
-                        OpMode.entries.forEach { mode ->
-                            FilterChip(
-                                selected = uiState.selectedMode == mode,
-                                onClick = { onSelectMode(mode) },
-                                label = { Text(mode.displayName) },
-                                modifier = Modifier.padding(end = 8.dp)
-                            )
-                        }
-                    }
-                }
-
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "选择应用（已选 ${uiState.selectedPackages.size}）",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f)
-                        )
-                        TextButton(onClick = onSelectAll) { Text("全选") }
-                        TextButton(onClick = onClearSelection) { Text("清空") }
-                    }
-                }
-
-                items(uiState.apps, key = { it.packageName }) { app ->
-                    AppCheckRow(
-                        app = app,
-                        checked = app.packageName in uiState.selectedPackages,
-                        onToggle = { onToggleApp(app.packageName) }
-                    )
-                    HorizontalDivider()
-                }
-
-                item {
-                    if (uiState.isExecuting) {
-                        Column(Modifier.padding(16.dp)) {
-                            LinearProgressIndicator(
-                                progress = {
-                                    if (uiState.total == 0) 0f
-                                    else uiState.progress.toFloat() / uiState.total
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Text(
-                                text = "正在处理 ${uiState.progress} / ${uiState.total}",
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                            OutlinedButton(
-                                onClick = onCancel,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp)
-                            ) { Text("取消") }
-                        }
-                    } else {
-                        val canExecute = uiState.selectedOp != null && uiState.selectedPackages.isNotEmpty()
-                        Button(
-                            onClick = onExecute,
-                            enabled = canExecute,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
-                        ) {
-                            Text("开始批量操作（${uiState.selectedPackages.size} 个应用）")
-                        }
-                    }
-                }
-
-                items(uiState.results) { result ->
-                    ResultRow(result)
-                    HorizontalDivider()
                 }
             }
         }
@@ -212,50 +286,94 @@ private fun SectionHeader(text: String) {
         style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.primary,
         fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun OpSelector(
     selectedOp: AppOp?,
     onSelectOp: (AppOp) -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var showDialog by remember { mutableStateOf(false) }
     val ops = AppOpCatalog.all()
 
-    Column(Modifier.padding(horizontal = 16.dp)) {
+    Row(
+        modifier = Modifier
+            .padding(horizontal = 16.dp)
+            .padding(top = 10.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { showDialog = true }
+            .fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Text(
             text = selectedOp?.displayName ?: "请选择要修改的权限",
+            modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyLarge,
             color = if (selectedOp != null) {
                 MaterialTheme.colorScheme.onSurface
             } else {
                 MaterialTheme.colorScheme.onSurfaceVariant
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = true }
-                .padding(vertical = 12.dp)
-        )
-        if (expanded) {
-            Column(Modifier.fillMaxWidth()) {
-                ops.forEach { op ->
-                    Text(
-                        text = "${op.displayName}（${op.name}）",
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                onSelectOp(op)
-                                expanded = false
-                            }
-                            .padding(horizontal = 8.dp, vertical = 10.dp)
-                    )
-                }
             }
-        }
+        )
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text("选择权限") },
+            text = {
+                LazyColumn(
+                    modifier = Modifier.heightIn(max = 400.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    items(ops, key = { it.name }) { op ->
+                        Row(
+                            modifier = Modifier
+                                .padding(horizontal = 12.dp, vertical = 14.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    onSelectOp(op)
+                                    showDialog = false
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    text = op.displayName,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = op.name,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            if (op == selectedOp) {
+                                Icon(
+                                    imageVector = Icons.Filled.Done,
+                                    contentDescription = "已选择",
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDialog = false }) { Text("取消") }
+            },
+            shape = RoundedCornerShape(24.dp)
+        )
     }
 }
 
@@ -268,21 +386,24 @@ private fun AppCheckRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onToggle)
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Checkbox(checked = checked, onCheckedChange = { onToggle() })
-        Text(
-            text = app.appName,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.weight(1f)
-        )
-        Text(
-            text = if (app.isSystemApp) "系统" else "用户",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = app.appName,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = app.packageName,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
@@ -291,22 +412,28 @@ private fun ResultRow(result: BatchResultItem) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 4.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = result.appName,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.weight(1f)
-        )
-        Text(
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = result.appName,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = if (result.success) "操作已生效" else (result.message.ifBlank { "操作失败" }),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        StatusChip(
             text = if (result.success) "成功" else "失败",
             color = if (result.success) {
                 MaterialTheme.colorScheme.primary
             } else {
                 MaterialTheme.colorScheme.error
-            },
-            style = MaterialTheme.typography.bodySmall
+            }
         )
     }
 }

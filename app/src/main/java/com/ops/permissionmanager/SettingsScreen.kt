@@ -2,25 +2,32 @@ package com.ops.permissionmanager
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ops.permissionmanager.core.model.ModifyMode
+import com.ops.permissionmanager.core.ui.CollapsingTitle
 
 /**
  * 设置页面路由入口。
@@ -37,12 +44,6 @@ fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
     )
 }
 
-/**
- * 设置页面内容。
- *
- * 含主题模式（跟随系统 / 浅色 / 深色）与修改方式（自动 / Root / ADB）的选择，
- * 并在 Shizuku 已选但未授权时提供授权入口。
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -56,71 +57,157 @@ fun SettingsScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
+            .padding(bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        SectionTitle("主题模式")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ThemeMode.entries.forEach { mode ->
-                FilterChip(
-                    selected = uiState.themeMode == mode,
-                    onClick = { onThemeModeSelected(mode) },
-                    label = { Text(mode.label) }
-                )
+        CollapsingTitle(
+            title = "设置",
+            subtitle = null,
+            collapsed = false,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+
+        SectionCard {
+            SectionHeader("主题模式")
+            ChipRow {
+                ThemeMode.entries.forEach { mode ->
+                    FilterChip(
+                        selected = uiState.themeMode == mode,
+                        onClick = { onThemeModeSelected(mode) },
+                        label = { Text(mode.label) },
+                        shape = RoundedCornerShape(10.dp),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    )
+                }
             }
         }
 
-        HorizontalDivider(Modifier.padding(vertical = 16.dp))
-
-        SectionTitle("修改方式")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ModifyMode.entries.forEach { mode ->
-                FilterChip(
-                    selected = uiState.modifyMode == mode,
-                    onClick = { onModifyModeSelected(mode) },
-                    label = { Text(mode.displayName) }
-                )
+        SectionCard {
+            SectionHeader("修改方式")
+            ChipRow {
+                ModifyMode.entries.forEach { mode ->
+                    FilterChip(
+                        selected = uiState.modifyMode == mode,
+                        onClick = { onModifyModeSelected(mode) },
+                        label = { Text(mode.displayName) },
+                        shape = RoundedCornerShape(10.dp),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    )
+                }
             }
         }
 
-        // 已选择 Shizuku 但未授权时的提示与授权入口
         if (uiState.modifyMode == ModifyMode.SHIZUKU && !uiState.isShizukuPermissionGranted) {
-            Text(
-                text = if (uiState.isShizukuBinderAvailable) {
-                    "Shizuku 服务可用但尚未授权，请授予权限。"
-                } else {
-                    "未检测到 Shizuku 服务，请先启动 Shizuku 或使用 ADB 授权。"
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-            TextButton(onClick = onRequestShizukuPermission) {
-                Text("请求 Shizuku 权限")
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                ),
+                elevation = CardDefaults.cardElevation(0.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (uiState.isShizukuBinderAvailable) {
+                            "Shizuku 服务可用但尚未授权，请授予权限。"
+                        } else {
+                            "未检测到 Shizuku 服务，请先启动 Shizuku 或使用 ADB 授权。"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f)
+                    )
+                    TextButton(onClick = onRequestShizukuPermission) {
+                        Text("请求权限")
+                    }
+                }
             }
         }
 
-        HorizontalDivider(Modifier.padding(vertical = 16.dp))
-
-        Row(Modifier.fillMaxWidth()) {
-            Text(
-                text = "版本",
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                text = uiState.versionName,
-                style = MaterialTheme.typography.bodyMedium
-            )
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
+            ),
+            elevation = CardDefaults.cardElevation(0.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "版本",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = uiState.versionName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun SectionTitle(text: String) {
+private fun SectionCard(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        ),
+        elevation = CardDefaults.cardElevation(0.dp)
+    ) {
+        Column(content = content)
+    }
+}
+
+@Composable
+private fun SectionHeader(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(bottom = 8.dp)
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+    )
+}
+
+@Composable
+private fun ChipRow(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        content = { content() }
     )
 }
