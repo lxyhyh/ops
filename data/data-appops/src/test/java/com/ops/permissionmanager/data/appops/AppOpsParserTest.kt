@@ -101,7 +101,7 @@ class AppOpsParserTest {
     }
 
     @Test
-    fun `parseGetOutput 内部按操作名去重`() {
+    fun `parseGetOutput 不去重（去重由仓库层按 op name 完成）`() {
         val raw = """
             Uid mode: default
               RUN_IN_BACKGROUND: allow
@@ -111,9 +111,13 @@ class AppOpsParserTest {
 
         val states = parser.parseGetOutput(raw)
 
-        assertEquals(2, states.size)
+        // 与原版一致：Parser 原样输出，重复行保留，去重交由 RealAppOpsRepository
+        assertEquals(3, states.size)
         assertEquals("RUN_IN_BACKGROUND", states[0].op.name)
+        assertEquals(OpMode.ALLOW, states[0].mode)
         assertEquals("CAMERA", states[1].op.name)
+        assertEquals("RUN_IN_BACKGROUND", states[2].op.name)
+        assertEquals(OpMode.IGNORE, states[2].mode)
     }
 
     @Test
@@ -139,15 +143,19 @@ class AppOpsParserTest {
 
         val records = parser.parseHistoryOutput(raw)
 
-        assertEquals(3, records.size)
+        // 与原版一致：每条 Access/Reject 独立保留，不去重、不合并
+        assertEquals(4, records.size)
         assertEquals("com.example.app", records[0].packageName)
         assertEquals("RUN_IN_BACKGROUND", records[0].opName)
         assertEquals(OpUsageRecord("com.example.app", "RUN_IN_BACKGROUND", 0).copy(timestampMillis = records[0].timestampMillis), records[0])
         assertEquals("com.example.app", records[1].packageName)
-        assertEquals("READ_CLIPBOARD", records[1].opName)
-        assertEquals("com.other.app", records[2].packageName)
-        assertEquals("CAMERA", records[2].opName)
+        assertEquals("RUN_IN_BACKGROUND", records[1].opName)
+        assertEquals("com.example.app", records[2].packageName)
+        assertEquals("READ_CLIPBOARD", records[2].opName)
+        assertEquals("com.other.app", records[3].packageName)
+        assertEquals("CAMERA", records[3].opName)
         assertTrue(records[0].timestampMillis > 0)
+        assertTrue(records[0].timestampMillis >= records[1].timestampMillis)
     }
 
     @Test
@@ -191,7 +199,7 @@ class AppOpsParserTest {
     }
 
     @Test
-    fun `parseHistoryOutput 超过三位毫秒不再静默丢弃`() {
+    fun `parseHistoryOutput 超过三位毫秒无法解析则跳过该条`() {
         val raw = """
             Recent:
               Package com.example.app:
@@ -201,8 +209,9 @@ class AppOpsParserTest {
 
         val records = parser.parseHistoryOutput(raw)
 
-        assertEquals(1, records.size)
-        assertEquals(epochMillis("2026-08-17 10:00:00.123"), records[0].timestampMillis)
+        // 与原版一致：正则 \d+ 捕获全部小数位，但格式器 [.SSS] 无法解析 >3 位，
+        // 解析失败即跳过该条（不崩溃、不静默截断）
+        assertEquals(0, records.size)
     }
 
     @Test

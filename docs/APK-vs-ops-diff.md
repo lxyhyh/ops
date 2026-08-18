@@ -71,3 +71,59 @@ APK 反编译中不存在 ops 缺失的功能类。
    LimitedInputStream/SettingsPrefKeys/RootAvailability、合并 AppOpsModule 嵌套模块，属功能性回退。
 3. **建议**：保留 ops 当前（更新的）实现；如需恢复的"丢失源码"有具体功能点，
    请提供线索（如某界面/功能/弹窗文案），可从反编译产物中精确比对恢复。
+
+## 六、代码级对齐实录（v12–v15，以反编译产物为"原版"基准）
+
+> 目标：重写后的 ops 应用在外观与性能上完全对齐 APK 反编译实现。
+> 方法：成对比对 `rebuild/jadx_out/.../*.java` 与 `ops/**/*.kt`，有差异代码即修复，不依赖截图。
+
+### v12（`c767d46`）UI 差异 + 性能根因批量修复
+
+| 文件 | 差异（反编译为基准） | 修复 |
+| --- | --- | --- |
+| `AppIcon.kt` | 图标加载在主线程 `getApplicationIcon()`，且只处理 BitmapDrawable → 卡顿 + AdaptiveIcon 空白 | `withContext(Dispatchers.IO)` + `Drawable.toBitmapSized(128,128)` + LruCache |
+| `RealAppListRepository.kt` | 过滤了自身包名（反编译不过滤） | 移除过滤 |
+| `AppListUiState/HistoryUiState/AppDetailUiState/BatchUiState` | 默认 `isLoading=true`（反编译 false） | 统一改 false |
+| `OpSelector.kt` | 确认/取消按钮位置反了；标题未加粗；modifier 链顺序不同；外层缺 Column(padding) | confirmButton 空 lambda、取消在 dismissButton、标题加粗、clip→clickable→padding、外包 Column |
+| `BatchRoute.kt` | CollapsingTitle+Card 缺外层 Column(fillMaxWidth.padding(h16)) | 补齐 |
+| `RootCheckUiState` | 反编译仅两字段，checkAvailability 无条件先置 checking | 精简字段 + 无条件 checking |
+| `BatchViewModel.kt` | 加载失败原版走 message(Snackbar) 不走 error 全屏 | 改走 message |
+
+### v13（`7ab4306`）历史页顶部空白
+
+| 根因 | 修复 |
+| --- | --- |
+| 外层 MainScaffold 已 `statusBarsPadding()`，HistoryRoute 内部 Scaffold 默认 contentWindowInsets=SystemBars 再让一次 → 两倍状态栏高度 | Scaffold 传 `contentWindowInsets = WindowInsets(0,0,0,0)` |
+
+### v14（`31a32d1`）历史页标题折叠动画
+
+| 根因 | 修复 |
+| --- | --- |
+| 历史页标题是 LazyColumn 静态文字，无 CollapsingTitle 折叠行为 | 改为外层 Column + `CollapsingTitle(title="历史", subtitle="共 N 条记录")`，与 AppList/Batch 结构一致 |
+
+### v15（`6a0dac0`）命令执行层 + 解析层对齐
+
+| 文件 | 差异（反编译为基准） | 修复 |
+| --- | --- | --- |
+| `CommandExecutorRouter.kt` | ①构造多注入 shizukuManager（原版仅3参）②只有 rootAvailable 缓存，缺 shizukuAvailable ③isAvailable 包 runCatching（原版透传）④AUTO 兜底抛 CommandFailed（原版兜底 rootExecutor）⑤AvailabilityCache.get 每次抢锁（原版无锁快速路径 + 锁内二次检查） | 移除 shizukuManager；恢复 shizukuAvailable 缓存；isAvailable 透传；AUTO 兜底 Root；AvailabilityCache 改 double-checked locking |
+| `AppOpsParser.kt` | ①parseGetOutput 内挂 distinctBy（原版 Parser 无，在 Repository 层）②parseHistoryOutput 按 pkg+op 合并去重（原版每条 Access/Reject 逐条 add）③时间戳正则 `\d{1,3}`（原版 `\d+` 不限位） | 移除 distinctBy；历史逐条保留；时间戳小数位不限 |
+| `RealAppOpsRepository.kt` | getAppOps 缺 distinctBy（原版在 Repository 层 `distinctBy { op.name }`） | 补 `.distinctBy { it.op.name }` |
+| `RootCommandExecutor.kt` | isAvailable 用 `id -u`+trim=="0"（原版 `id`+contains("uid=0")） | 改 id + contains("uid=0") |
+
+### v15 配套测试同步（`测试策略与质量保障`）
+
+行为变更后同步更新 3 个受影响用例（原断言为 ops 旧重构行为）：
+
+| 用例 | 修改 |
+| --- | --- |
+| `parseHistoryOutput 解析历史记录` | 3 条 → 4 条（Access+Reject 逐条保留） |
+| `parseGetOutput 内部按操作名去重` | 改为"Parser 不去重，去重移交仓库层"（3 条） |
+| `parseHistoryOutput 超过三位毫秒` | 不再静默截断为 .123；>3 位无法解析则跳过该条 |
+
+### 核验一致（无差异，保留 ops 结构）
+
+- `UiStates.kt` 四组件 / `AppListScreen` / `SettingsScreen` / `RootGuideScreen` / `OpsNavHost` 底部胶囊
+- `HistoryRoute` 列表结构 / `RealAppOpsRepository` 命令构成 / `HistoryViewModel`（默认 isLoading=false、记录直传）
+- `SettingsViewModel` combine/stateIn 与反编译 4 个独立 collect 行为等价（监听同一批流源），属架构重构，保留
+- `RootCheckViewModel` 注入 ExecutionAvailability 接口 vs 反编译直接 Router——行为等价，保留接口拆分（便于测试注入）
+- `AppIcon` 的 `toBitmapSized` 与反编译 `toBitmap(128,128)` 语义一致（core-ui 未引入 core-ktx，手写等价实现）
