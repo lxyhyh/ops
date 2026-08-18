@@ -118,7 +118,6 @@ private fun HistoryRecordRow(record: OpUsageRecord) {
     }
 }
 
-private fun formatTime(millis: Long): String {
-    val formatter = SimpleDateFormat("MM-dd HH:mm:ss", Locale.getDefault())
-    return formatter.format(Date(millis))
-}
+private val TIME_FORMATTER = SimpleDateFormat("MM-dd HH:mm:ss", Locale.getDefault())
+
+private fun formatTime(millis: Long): String = TIME_FORMATTER.format(Date(millis))

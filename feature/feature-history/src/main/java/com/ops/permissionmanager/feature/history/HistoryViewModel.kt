@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
 import javax.inject.Inject
 
 data class HistoryUiState(
@@ -33,13 +34,14 @@ class HistoryViewModel @Inject constructor(
     fun loadHistory() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            runCatching { appOpsRepository.getHistory() }
-                .onSuccess { records ->
-                    _uiState.update { it.copy(isLoading = false, records = records) }
-                }
-                .onFailure { e ->
-                    _uiState.update { it.copy(isLoading = false, error = e.message) }
-                }
+            try {
+                val records = appOpsRepository.getHistory()
+                _uiState.update { it.copy(isLoading = false, records = records) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, error = e.message) }
+            }
         }
     }
 }

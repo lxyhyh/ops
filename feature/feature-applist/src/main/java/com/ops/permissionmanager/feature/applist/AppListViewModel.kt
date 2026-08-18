@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
 import javax.inject.Inject
 
 data class AppListUiState(
@@ -33,13 +34,14 @@ class AppListViewModel @Inject constructor(
     fun loadApps() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            runCatching { appListRepository.getInstalledApps() }
-                .onSuccess { apps ->
-                    _uiState.update { it.copy(isLoading = false, apps = apps) }
-                }
-                .onFailure { e ->
-                    _uiState.update { it.copy(isLoading = false, error = e.message) }
-                }
+            try {
+                val apps = appListRepository.getInstalledApps()
+                _uiState.update { it.copy(isLoading = false, apps = apps) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, error = e.message) }
+            }
         }
     }
 }

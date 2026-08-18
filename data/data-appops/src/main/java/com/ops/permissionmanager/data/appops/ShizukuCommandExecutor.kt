@@ -1,25 +1,20 @@
 package com.ops.permissionmanager.data.appops
 
+import com.ops.permissionmanager.core.model.AppOpsError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import rikka.shizuku.ShizukuRemoteProcess
+import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * 通过 Shizuku 执行命令的执行器。
- *
- * 依赖 [ShizukuManager] 判断可用性；
- * 通过 `newProcess("sh", "-c", command)` 以远程（ADB / root）身份执行命令。
- */
 @Singleton
 class ShizukuCommandExecutor @Inject constructor(
     private val shizukuManager: ShizukuManager
 ) : CommandExecutor {
 
     private companion object {
-        /** 反射获取的 [rikka.shizuku.Shizuku.newProcess] 方法。 */
         val NEW_PROCESS_METHOD: Method? by lazy {
             try {
                 val clazz = Class.forName("rikka.shizuku.Shizuku")
@@ -38,15 +33,37 @@ class ShizukuCommandExecutor @Inject constructor(
     }
 
     override suspend fun execute(command: String): ShellResult = withContext(Dispatchers.IO) {
-        val process = newProcess(arrayOf("sh", "-c", command))
-        executeProcess(process)
+        try {
+            val process = newProcess(arrayOf("sh", "-c", command))
+            executeProcess(process)
+        } catch (e: AppOpsError.CommandFailed) {
+            ShellResult("", e.stderr.printlnIfBlank("Shizuku 命令执行失败"), exitCode = e.exitCode)
+        }
     }
 
     override suspend fun isAvailable(): Boolean = shizukuManager.isAvailable()
 
     private fun newProcess(cmd: Array<String>): ShizukuRemoteProcess {
         val method = NEW_PROCESS_METHOD
-            ?: throw IllegalStateException("Shizuku newProcess 反射初始化失败")
-        return method.invoke(null, cmd, null, null) as ShizukuRemoteProcess
+            ?: throw AppOpsError.CommandFailed(
+                exitCode = -10,
+                stderr = "Shizuku newProcess 反射初始化失败（Shizuku 类或方法不可用）"
+            )
+        return try {
+            method.invoke(null, cmd, null, null) as ShizukuRemoteProcess
+        } catch (e: InvocationTargetException) {
+            throw AppOpsError.CommandFailed(
+                exitCode = -11,
+                stderr = "Shizuku newProcess 反射调用失败: ${e.targetException?.message ?: e.message}"
+            )
+        } catch (e: IllegalAccessException) {
+            throw AppOpsError.CommandFailed(
+                exitCode = -12,
+                stderr = "Shizuku newProcess 反射无权限访问: ${e.message}"
+            )
+        }
     }
 }
+
+private fun String.printlnIfBlank(default: String): String =
+    if (isBlank()) default else this

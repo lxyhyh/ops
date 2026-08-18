@@ -2,11 +2,16 @@ package com.ops.permissionmanager.data.appops
 
 import com.ops.permissionmanager.core.model.OpMode
 import com.ops.permissionmanager.core.model.OpUsageRecord
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AppOpsParserTest {
+
+    private val parser = AppOpsParser()
 
     @Test
     fun `parseGetOutput 解析标准输出`() {
@@ -18,7 +23,7 @@ class AppOpsParserTest {
               CAMERA: default
         """.trimIndent()
 
-        val states = AppOpsParser.parseGetOutput(raw)
+        val states = parser.parseGetOutput(raw)
 
         assertEquals(4, states.size)
         assertEquals("RUN_IN_BACKGROUND", states[0].op.name)
@@ -35,7 +40,7 @@ class AppOpsParserTest {
               RUN_IN_BACKGROUND: allow; time=+1h2m3s400ms ago
         """.trimIndent()
 
-        val states = AppOpsParser.parseGetOutput(raw)
+        val states = parser.parseGetOutput(raw)
 
         assertEquals(1, states.size)
         assertEquals(OpMode.ALLOW, states[0].mode)
@@ -50,9 +55,8 @@ class AppOpsParserTest {
               garbage line
         """.trimIndent()
 
-        val states = AppOpsParser.parseGetOutput(raw)
+        val states = parser.parseGetOutput(raw)
 
-        // garbage line 无法匹配被跳过；UNKNOWN_OP 不在目录中但保留（显示原始名称）
         assertEquals(2, states.size)
         assertEquals("UNKNOWN_OP", states[0].op.name)
         assertEquals("UNKNOWN_OP", states[0].op.displayName)
@@ -67,7 +71,7 @@ class AppOpsParserTest {
               COARSE_LOCATION: deny
         """.trimIndent()
 
-        val states = AppOpsParser.parseGetOutput(raw)
+        val states = parser.parseGetOutput(raw)
 
         assertEquals(2, states.size)
         assertEquals("FINE_LOCATION", states[0].op.name)
@@ -86,7 +90,7 @@ class AppOpsParserTest {
               SYSTEM_EXEMPT_FROM_ACTIVITY_BG_START_RESTRICTION: allow
         """.trimIndent()
 
-        val states = AppOpsParser.parseGetOutput(raw)
+        val states = parser.parseGetOutput(raw)
 
         assertEquals(5, states.size)
         assertEquals("读取通话记录", states[0].op.displayName)
@@ -97,8 +101,24 @@ class AppOpsParserTest {
     }
 
     @Test
+    fun `parseGetOutput 内部按操作名去重`() {
+        val raw = """
+            Uid mode: default
+              RUN_IN_BACKGROUND: allow
+              CAMERA: deny
+              RUN_IN_BACKGROUND: ignore
+        """.trimIndent()
+
+        val states = parser.parseGetOutput(raw)
+
+        assertEquals(2, states.size)
+        assertEquals("RUN_IN_BACKGROUND", states[0].op.name)
+        assertEquals("CAMERA", states[1].op.name)
+    }
+
+    @Test
     fun `parseGetOutput 空输入返回空列表`() {
-        assertTrue(AppOpsParser.parseGetOutput("").isEmpty())
+        assertTrue(parser.parseGetOutput("").isEmpty())
     }
 
     @Test
@@ -117,7 +137,7 @@ class AppOpsParserTest {
             Uid 10001: com.example.app
         """.trimIndent()
 
-        val records = AppOpsParser.parseHistoryOutput(raw)
+        val records = parser.parseHistoryOutput(raw)
 
         assertEquals(3, records.size)
         assertEquals("com.example.app", records[0].packageName)
@@ -132,6 +152,82 @@ class AppOpsParserTest {
 
     @Test
     fun `parseHistoryOutput 空输入返回空列表`() {
-        assertTrue(AppOpsParser.parseHistoryOutput("").isEmpty())
+        assertTrue(parser.parseHistoryOutput("").isEmpty())
     }
+
+    @Test
+    fun `parseHistoryOutput 无毫秒时间戳可解析`() {
+        val raw = """
+            Recent:
+              Package com.example.app:
+                RUN_IN_BACKGROUND (default):
+                  Access: 2026-08-17 10:00:00
+        """.trimIndent()
+
+        val records = parser.parseHistoryOutput(raw)
+
+        assertEquals(1, records.size)
+        assertEquals(epochMillis("2026-08-17 10:00:00"), records[0].timestampMillis)
+    }
+
+    @Test
+    fun `parseHistoryOutput 一位或两位毫秒不满足严格格式时优雅跳过不崩溃`() {
+        val raw = """
+            Recent:
+              Package com.example.app:
+                OP_A (default):
+                  Access: 2026-08-17 10:00:00.1
+                OP_B (default):
+                  Access: 2026-08-17 10:00:00
+                OP_C (default):
+                  Access: 2026-08-17 10:00:00.12
+        """.trimIndent()
+
+        val records = parser.parseHistoryOutput(raw)
+
+        assertEquals(1, records.size)
+        assertEquals("OP_B", records[0].opName)
+        assertEquals(epochMillis("2026-08-17 10:00:00"), records[0].timestampMillis)
+    }
+
+    @Test
+    fun `parseHistoryOutput 超过三位毫秒不再静默丢弃`() {
+        val raw = """
+            Recent:
+              Package com.example.app:
+                RUN_IN_BACKGROUND (default):
+                  Access: 2026-08-17 10:00:00.123456
+        """.trimIndent()
+
+        val records = parser.parseHistoryOutput(raw)
+
+        assertEquals(1, records.size)
+        assertEquals(epochMillis("2026-08-17 10:00:00.123"), records[0].timestampMillis)
+    }
+
+    @Test
+    fun `parseHistoryOutput 带时区不合法时间戳被跳过不崩溃`() {
+        val raw = """
+            Recent:
+              Package com.example.app:
+                RUN_IN_BACKGROUND (default):
+                  Access: not-a-timestamp
+                READ_CLIPBOARD (allow):
+                  Access: 2026-08-17 09:00:00
+        """.trimIndent()
+
+        val records = parser.parseHistoryOutput(raw)
+
+        assertEquals(1, records.size)
+        assertEquals("READ_CLIPBOARD", records[0].opName)
+    }
+
+    private fun epochMillis(dateTime: String): Long =
+        LocalDateTime.parse(
+            dateTime,
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.SSS]")
+        )
+            .atZone(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
 }

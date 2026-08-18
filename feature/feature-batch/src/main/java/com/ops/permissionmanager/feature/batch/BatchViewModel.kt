@@ -9,14 +9,15 @@ import com.ops.permissionmanager.data.applist.AppListRepository
 import com.ops.permissionmanager.data.appops.AppOpsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
 import javax.inject.Inject
 
-/** 单个应用批量操作的结果。 */
 data class BatchResultItem(
     val packageName: String,
     val appName: String,
@@ -56,13 +57,14 @@ class BatchViewModel @Inject constructor(
     fun loadApps() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            runCatching { appListRepository.getInstalledApps() }
-                .onSuccess { apps ->
-                    _uiState.update { it.copy(isLoading = false, apps = apps) }
-                }
-                .onFailure { e ->
-                    _uiState.update { it.copy(isLoading = false, error = e.message) }
-                }
+            try {
+                val apps = appListRepository.getInstalledApps()
+                _uiState.update { it.copy(isLoading = false, apps = apps) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, error = e.message) }
+            }
         }
     }
 
@@ -108,8 +110,11 @@ class BatchViewModel @Inject constructor(
             }
             val results = mutableListOf<BatchResultItem>()
             var done = 0
+            val mode = state.selectedMode
             for (app in targets) {
-                val result = appOpsRepository.setAppOp(app.packageName, op, state.selectedMode)
+                ensureActive()
+                val result = appOpsRepository.setAppOp(app.packageName, op, mode)
+                ensureActive()
                 results.add(
                     BatchResultItem(
                         packageName = app.packageName,
@@ -119,11 +124,12 @@ class BatchViewModel @Inject constructor(
                     )
                 )
                 done++
-                _uiState.update { it.copy(progress = done, results = results.toList()) }
+                _uiState.update { it.copy(progress = done) }
             }
             _uiState.update {
                 it.copy(
                     isExecuting = false,
+                    results = results,
                     message = "批量操作完成：成功 ${results.count { r -> r.success }} / ${results.size}"
                 )
             }

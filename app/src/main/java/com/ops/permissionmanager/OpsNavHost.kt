@@ -26,6 +26,15 @@ import com.ops.permissionmanager.feature.applist.AppListRoute
 import com.ops.permissionmanager.feature.batch.BatchRoute
 import com.ops.permissionmanager.feature.history.HistoryRoute
 
+private object Routes {
+    const val APP_LIST = "app_list"
+    const val BATCH = "batch"
+    const val HISTORY = "history"
+    const val SETTINGS = "settings"
+    const val APP_DETAIL = "app_detail/{packageName}"
+    const val APP_DETAIL_PATTERN = "app_detail/"
+}
+
 private data class TopLevelDestination(
     val route: String,
     val label: String,
@@ -33,10 +42,10 @@ private data class TopLevelDestination(
 )
 
 private val topLevelDestinations = listOf(
-    TopLevelDestination("app_list", "应用", Icons.Filled.Apps),
-    TopLevelDestination("batch", "批量", Icons.Filled.List),
-    TopLevelDestination("history", "历史", Icons.Filled.History),
-    TopLevelDestination("settings", "设置", Icons.Filled.Settings)
+    TopLevelDestination(Routes.APP_LIST, "应用", Icons.Filled.Apps),
+    TopLevelDestination(Routes.BATCH, "批量", Icons.Filled.List),
+    TopLevelDestination(Routes.HISTORY, "历史", Icons.Filled.History),
+    TopLevelDestination(Routes.SETTINGS, "设置", Icons.Filled.Settings)
 )
 
 @Composable
@@ -71,26 +80,26 @@ fun OpsNavHost(modifier: Modifier = Modifier) {
     ) { padding ->
         NavHost(
             navController = navController,
-            startDestination = "app_list",
+            startDestination = Routes.APP_LIST,
             modifier = Modifier.padding(padding)
         ) {
-            composable("app_list") {
+            composable(Routes.APP_LIST) {
                 AppListRoute(
                     onAppClick = { packageName ->
-                        navController.navigate("app_detail/$packageName")
+                        navController.navigate(Routes.APP_DETAIL_PATTERN + packageName)
                     }
                 )
             }
-            composable("app_detail/{packageName}") { entry ->
+            composable(Routes.APP_DETAIL) { entry ->
                 val packageName = entry.arguments?.getString("packageName").orEmpty()
                 AppDetailRoute(
                     packageName = packageName,
                     onBack = { navController.popBackStack() }
                 )
             }
-            composable("batch") { BatchRoute() }
-            composable("history") { HistoryRoute() }
-            composable("settings") { SettingsRoute() }
+            composable(Routes.BATCH) { BatchRoute() }
+            composable(Routes.HISTORY) { HistoryRoute() }
+            composable(Routes.SETTINGS) { SettingsRoute() }
         }
     }
 }

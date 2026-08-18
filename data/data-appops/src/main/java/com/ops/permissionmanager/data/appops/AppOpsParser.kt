@@ -9,28 +9,10 @@ import com.ops.permissionmanager.core.model.OpUsageRecord
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import javax.inject.Inject
 
-/**
- * AppOps 命令输出解析器（纯函数）。
- *
- * 把 `cmd appops get` / `dumpsys appops` 的文本输出解析为领域模型。
- * 不在 [AppOpCatalog] 中的操作名会保留（显示原始名称），
- * 无法识别的行跳过，不整体崩溃。
- */
-object AppOpsParser {
+class AppOpsParser @Inject constructor() {
 
-    /** 匹配 `OP_NAME: MODE(; 其他)` 形式的行。 */
-    private val GET_LINE_REGEX = Regex("""([A-Z_]+):\s*(\w+)(?:;.*)?""")
-
-    /** 匹配时间戳：`yyyy-MM-dd HH:mm:ss[.SSS]`。 */
-    private val TIMESTAMP_REGEX = Regex("""\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:\.\d+)?""")
-
-    private val TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.SSS]")
-
-    /**
-     * 解析 `cmd appops get <package>` 输出。
-     * 每行形如 `  OP_NAME: MODE` 或 `  OP_NAME: MODE; time=...`。
-     */
     fun parseGetOutput(raw: String): List<AppOpState> =
         raw.lineSequence()
             .mapNotNull { line ->
@@ -41,19 +23,10 @@ object AppOpsParser {
                 val op = AppOpCatalog.find(opName) ?: AppOp(opName, opName, OpGroup.OTHER)
                 AppOpState(op, mode)
             }
+            .distinctBy { it.op.name }
             .toList()
 
-    /**
-     * 解析 `dumpsys appops` 历史输出。
-     *
-     * 跟踪"当前包名"与"当前操作名"，在出现 `Access:` / `Reject:` 记录行时解析时间戳。
-     * - `Uid ...:` 重置上下文；
-     * - `Package xxx:` 设置当前包名；
-     * - `OP_NAME (...):`（操作头）设置当前操作名；
-     * - `Access:` / `Reject:` 行为一次命中记录。
-     */
     fun parseHistoryOutput(raw: String): List<OpUsageRecord> {
-        // 按 (包名, 操作) 去重，保留第一次出现的顺序，时间戳取最新的一次。
         val byKey = LinkedHashMap<String, OpUsageRecord>()
         var currentPackage: String? = null
         var currentOp: String? = null
@@ -90,7 +63,6 @@ object AppOpsParser {
         return byKey.values.toList()
     }
 
-    /** 更新/新增一条历史记录：同一 (包名, 操作) 只保留时间戳最新的一条。 */
     private fun updateRecord(
         byKey: LinkedHashMap<String, OpUsageRecord>,
         pkg: String,
@@ -106,15 +78,11 @@ object AppOpsParser {
         }
     }
 
-    /**
-     * 判断是否为操作名：非空且仅由大写字母、数字、下划线组成。
-     */
     private fun isOpName(name: String): Boolean {
         if (name.isEmpty()) return false
         return name.all { it.isUpperCase() || it.isDigit() || it == '_' }
     }
 
-    /** 从文本中提取时间戳（毫秒），失败返回 null。 */
     private fun parseTimestamp(raw: String): Long? {
         val dateTime = TIMESTAMP_REGEX.find(raw)?.value ?: return null
         return try {
@@ -125,5 +93,14 @@ object AppOpsParser {
         } catch (_: Exception) {
             null
         }
+    }
+
+    companion object {
+        private val GET_LINE_REGEX = Regex("""([A-Z_]+):\s*(\w+)(?:;.*)?""")
+        private val TIMESTAMP_REGEX = Regex("""\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?""")
+        private val TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.SSS]")
+        private val INSTANCE by lazy { AppOpsParser() }
+        fun parseGetOutput(raw: String): List<AppOpState> = INSTANCE.parseGetOutput(raw)
+        fun parseHistoryOutput(raw: String): List<OpUsageRecord> = INSTANCE.parseHistoryOutput(raw)
     }
 }

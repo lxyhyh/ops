@@ -7,44 +7,38 @@ import com.ops.permissionmanager.core.model.OpMode
 import com.ops.permissionmanager.core.model.OpUsageRecord
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.cancellation.CancellationException
 
-/**
- * 基于 appops 命令的真实数据仓库实现。
- *
- * 通过 [CommandExecutor]（内部为 [CommandExecutorRouter]，按修改模式选择 Root / Shizuku）
- * 执行 `cmd appops` 与 `dumpsys` 命令，并用 [AppOpsParser] 解析输出。
- */
 @Singleton
 class RealAppOpsRepository @Inject constructor(
-    private val commandExecutor: CommandExecutor
+    private val commandExecutor: CommandExecutor,
+    private val appOpsParser: AppOpsParser
 ) : AppOpsRepository {
 
     override suspend fun getAppOps(packageName: String): AppOpsState {
-        if (packageName.isBlank()) throw AppOpsError.InvalidPackage
-
-        val result = commandExecutor.execute("cmd appops get $packageName")
+        val safe = validatePackageName(packageName)
+        val result = commandExecutor.execute("cmd appops get $safe")
         if (result.exitCode != 0) {
             throw AppOpsError.CommandFailed(result.exitCode, result.stderr)
         }
-
-        // 按操作名去重，返回包下全部操作状态
-        val states = AppOpsParser.parseGetOutput(result.stdout)
-            .distinctBy { it.op.name }
-
+        val states = appOpsParser.parseGetOutput(result.stdout)
         return AppOpsState(packageName, states)
     }
 
     override suspend fun setAppOp(packageName: String, op: AppOp, mode: OpMode): Result<Unit> {
-        if (packageName.isBlank()) {
-            return Result.failure(AppOpsError.InvalidPackage)
-        }
-        return runCatching {
+        val safe = validatePackageName(packageName)
+        return try {
             val result = commandExecutor.execute(
-                "cmd appops set $packageName ${op.name} ${mode.commandValue}"
+                "cmd appops set $safe ${op.name} ${mode.commandValue}"
             )
             if (result.exitCode != 0) {
                 throw AppOpsError.CommandFailed(result.exitCode, result.stderr)
             }
+            Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
@@ -53,6 +47,17 @@ class RealAppOpsRepository @Inject constructor(
         if (result.exitCode != 0) {
             throw AppOpsError.CommandFailed(result.exitCode, result.stderr)
         }
-        return AppOpsParser.parseHistoryOutput(result.stdout)
+        return appOpsParser.parseHistoryOutput(result.stdout)
+    }
+
+    private fun validatePackageName(packageName: String): String {
+        if (!PACKAGE_NAME_REGEX.matches(packageName)) {
+            throw AppOpsError.InvalidPackage
+        }
+        return packageName
+    }
+
+    private companion object {
+        val PACKAGE_NAME_REGEX = Regex("[a-zA-Z0-9._]{1,200}")
     }
 }
