@@ -1,6 +1,8 @@
 package com.ops.permissionmanager.data.appops
 
 import com.ops.permissionmanager.core.model.ModifyMode
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
@@ -33,8 +35,13 @@ class CommandExecutorRouter @Inject constructor(
         resolveExecutor().isAvailable()
 
     override suspend fun isAnyAvailable(): Boolean {
-        if (cachedRootAvailable()) return true
-        return cachedShizukuAvailable()
+        // 性能优化：root/shizuku 探测并行化，启动等待从“两者之和”降为“两者较大”，
+        // 语义不变（任一可用即返回 true），不影响后续逐项 isRoot/isShizuku 查询。
+        return coroutineScope {
+            val root = async { cachedRootAvailable() }
+            val shizuku = async { cachedShizukuAvailable() }
+            root.await() || shizuku.await()
+        }
     }
 
     override suspend fun isRootAvailable(): Boolean = cachedRootAvailable()
