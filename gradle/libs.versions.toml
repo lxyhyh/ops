@@ -1,7 +1,7 @@
 [versions]
 agp = "9.3.1"
-kotlin = "2.2.10"
-ksp = "2.2.10-2.0.2"
+kotlin = "2.4.10"
+ksp = "2.3.11"
 hilt = "2.60.1"
 hiltNavigationCompose = "1.4.0"
 coreKtx = "1.19.0"
@@ -17,6 +17,7 @@ shizuku = "13.1.5"
 benchmark = "1.4.1"
 androidxTestRunner = "1.7.0"
 uiautomator = "2.3.0"
+miuix = "0.9.3"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -47,6 +48,10 @@ androidx-benchmark-macro-junit4 = { group = "androidx.benchmark", name = "benchm
 androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTestRunner" }
 androidx-test-rules = { group = "androidx.test", name = "rules", version.ref = "androidxTestRunner" }
 androidx-test-uiautomator = { group = "androidx.test.uiautomator", name = "uiautomator", version.ref = "uiautomator" }
+miuix = { group = "top.yukonga.miuix.kmp", name = "miuix-ui", version.ref = "miuix" }
+miuix-preference = { group = "top.yukonga.miuix.kmp", name = "miuix-preference", version.ref = "miuix" }
+miuix-squircle = { group = "top.yukonga.miuix.kmp", name = "miuix-squircle", version.ref = "miuix" }
+miuix-blur = { group = "top.yukonga.miuix.kmp", name = "miuix-blur", version.ref = "miuix" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
