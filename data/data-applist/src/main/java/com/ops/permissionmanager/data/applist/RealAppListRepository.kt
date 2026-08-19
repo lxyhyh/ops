@@ -15,10 +15,23 @@ class RealAppListRepository @Inject constructor(
     @ApplicationContext private val context: Context
 ) : AppListRepository {
 
+    /** 进程内应用列表缓存：应用列表 + 批量页会各自加载，共享一份避免重复 IO/内存双份。 */
+    @Volatile
+    private var cached: List<AppInfo>? = null
+
+    @Volatile
+    private var cachedAt: Long = 0
+
     override suspend fun getInstalledApps(): List<AppInfo> = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        cached?.let { list ->
+            if (now - cachedAt < CACHE_TTL_MS) {
+                return@withContext list
+            }
+        }
         val pm = context.packageManager
         // 与原版一致：不过滤自身包名，全部已安装应用都展示。
-        pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(0))
+        val apps = pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(0))
             .map { appInfo ->
                 AppInfo(
                     packageName = appInfo.packageName,
@@ -27,5 +40,13 @@ class RealAppListRepository @Inject constructor(
                 )
             }
             .sortedBy { it.appName.lowercase() }
+        cached = apps
+        cachedAt = now
+        apps
+    }
+
+    private companion object {
+        /** 缓存有效期：应用列表在进程内变化频率低，30s 足够避免重复查询又不至于陈旧。 */
+        const val CACHE_TTL_MS = 30_000L
     }
 }

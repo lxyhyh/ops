@@ -13,9 +13,15 @@ import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** 应用图标缓存，避免每次重组重复加载包名对应的图标。
- *  性能优化：64→512（覆盖 300+ 已装应用的全量滚动回看，避免滑过即淘汰导致的重复解码）。 */
-private val iconCache = LruCache<String, ImageBitmap>(512)
+/**
+ * 应用图标缓存，避免每次重组重复加载包名对应的图标。
+ *
+ * 资源占用优化：改为**按字节**限制（默认 LruCache.sizeOf 按条目计，512×64KB 上限不可控）。
+ * 128×128 ARGB 每标 ≈64KB，20MB ≈ 320 个，覆盖 300+ 已装应用的滚动回看。
+ */
+private val iconCache = object : LruCache<String, ImageBitmap>(20 * 1024 * 1024) {
+    override fun sizeOf(key: String, value: ImageBitmap): Int = value.width * value.height * 4
+}
 
 /**
  * 将 Drawable 绘制到固定尺寸的 ARGB_8888 Bitmap 上（与原版 Drawable.toBitmap(128,128)
