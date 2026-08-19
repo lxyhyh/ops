@@ -53,6 +53,7 @@ import com.ops.permissionmanager.core.model.OpGroup
 import com.ops.permissionmanager.core.model.OpMode
 import com.ops.permissionmanager.core.ui.ErrorState
 import com.ops.permissionmanager.core.ui.StatusChip
+import top.yukonga.miuix.kmp.squircle.squircleClip
 
 /** 权限分组大圆角卡片。 */
 private val GroupCardRadius = 20.dp
@@ -233,7 +234,7 @@ private fun AppOpRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .squircleClip(12.dp)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -290,7 +291,7 @@ private fun ModePickerDialog(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
+                            .squircleClip(12.dp)
                             .clickable { onSelect(mode) }
                             .padding(horizontal = 8.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically

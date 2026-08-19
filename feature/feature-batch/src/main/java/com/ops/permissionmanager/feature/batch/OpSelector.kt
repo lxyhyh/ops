@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ops.permissionmanager.core.model.AppOp
 import com.ops.permissionmanager.core.model.AppOpCatalog
+import top.yukonga.miuix.kmp.squircle.squircleClip
 
 /**
  * 权限选择器。
@@ -55,7 +56,7 @@ fun OpSelector(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
+                .squircleClip(12.dp)
                 .clickable { showDialog = true }
                 .padding(vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -91,7 +92,7 @@ fun OpSelector(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .squircleClip(12.dp)
                                 .clickable {
                                     onSelectOp(op)
                                     showDialog = false

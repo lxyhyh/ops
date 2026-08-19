@@ -62,6 +62,7 @@ import com.ops.permissionmanager.core.ui.AppTypeLabel
 import com.ops.permissionmanager.core.ui.CollapsingTitle
 import com.ops.permissionmanager.core.ui.ErrorState
 import com.ops.permissionmanager.core.ui.StatusChip
+import top.yukonga.miuix.kmp.squircle.squircleClip
 
 @Composable
 fun BatchRoute(
@@ -317,7 +318,7 @@ private fun AppCheckRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .squircleClip(16.dp)
             .background(background)
             .clickable(onClick = onToggle)
             .padding(horizontal = 12.dp, vertical = 8.dp),
@@ -348,7 +349,7 @@ private fun ResultRow(result: BatchResultItem) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .squircleClip(14.dp)
             .background(MaterialTheme.colorScheme.surfaceContainer)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically

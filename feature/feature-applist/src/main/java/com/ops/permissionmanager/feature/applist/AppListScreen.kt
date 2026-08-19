@@ -48,6 +48,7 @@ import com.ops.permissionmanager.core.ui.AppTypeLabel
 import com.ops.permissionmanager.core.ui.CollapsingTitle
 import com.ops.permissionmanager.core.ui.ErrorState
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import top.yukonga.miuix.kmp.squircle.squircleClip
 
 @Composable
 fun AppListRoute(
@@ -218,7 +219,7 @@ private fun AppListItem(app: AppInfo, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .squircleClip(16.dp) // MIUI X G2 连续曲线圆角
             .clickable(onClick = onClick)
             .padding(horizontal = 4.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically

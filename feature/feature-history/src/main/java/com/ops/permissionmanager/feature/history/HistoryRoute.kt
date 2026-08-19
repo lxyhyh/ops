@@ -40,6 +40,7 @@ import com.ops.permissionmanager.core.ui.ErrorState
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import top.yukonga.miuix.kmp.squircle.squircleClip
 
 @Composable
 fun HistoryRoute(
@@ -182,7 +183,7 @@ private fun HistoryGroupCard(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
+                        .squircleClip(10.dp)
                         .clickable { expanded = true }
                         .padding(horizontal = 16.dp, vertical = 14.dp)
                 ) {
@@ -206,7 +207,7 @@ private fun HistoryRecordRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .squircleClip(10.dp)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

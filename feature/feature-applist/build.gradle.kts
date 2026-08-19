@@ -29,6 +29,8 @@ kotlin {
 }
 
 dependencies {
+    implementation(libs.miuix)
+    implementation(libs.miuix.squircle)
     implementation(project(":core:core-model"))
     implementation(project(":core:core-ui"))
     implementation(project(":data:data-appops"))
