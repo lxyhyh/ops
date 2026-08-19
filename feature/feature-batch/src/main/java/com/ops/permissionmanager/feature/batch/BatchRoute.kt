@@ -1,5 +1,6 @@
 package com.ops.permissionmanager.feature.batch
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -27,6 +28,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -174,9 +176,14 @@ fun BatchScreen(
                                             onClick = { onSelectMode(mode) },
                                             label = { Text(mode.displayName) },
                                             shape = RoundedCornerShape(10.dp),
+                                            border = BorderStroke(
+                                                1.dp,
+                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.45f) // MIUI X：未选中描边也用主题色系
+                                            ),
                                             colors = FilterChipDefaults.filterChipColors(
                                                 selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryFixed
+                                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryFixed,
+                                                labelColor = MaterialTheme.colorScheme.primary // 未选中文字用主题色
                                             )
                                         )
                                     }
@@ -323,7 +330,13 @@ private fun AppCheckRow(
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Checkbox(checked = checked, onCheckedChange = { onToggle() })
+        Checkbox(
+            checked = checked,
+            onCheckedChange = { onToggle() },
+            colors = CheckboxDefaults.colors(
+                uncheckedColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) // MIUI X：未选中描边用主题色系
+            )
+        )
         AppIcon(
             packageName = app.packageName,
             appName = app.appName,

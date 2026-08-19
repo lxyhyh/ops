@@ -35,7 +35,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,7 +47,7 @@ import com.ops.permissionmanager.core.ui.AppTypeLabel
 import com.ops.permissionmanager.core.ui.CollapsingTitle
 import com.ops.permissionmanager.core.ui.ErrorState
 import androidx.lifecycle.compose.LifecycleResumeEffect
-import top.yukonga.miuix.kmp.squircle.squircleClip
+import top.yukonga.miuix.kmp.squircle.squircleBackground
 
 @Composable
 fun AppListRoute(
@@ -219,9 +218,10 @@ private fun AppListItem(app: AppInfo, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .squircleClip(16.dp) // MIUI X G2 连续曲线圆角
+            // MIUI X：应用项卡片容器（白底 G2 圆角），与页面灰背景区分应用边界
+            .squircleBackground(MaterialTheme.colorScheme.surface, 16.dp)
             .clickable(onClick = onClick)
-            .padding(horizontal = 4.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         AppIcon(

@@ -17,8 +17,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -29,12 +27,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ops.permissionmanager.core.model.ModifyMode
 import com.ops.permissionmanager.core.ui.MiuiShapes
+import top.yukonga.miuix.kmp.basic.Checkbox
+import top.yukonga.miuix.kmp.basic.CheckboxDefaults
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 
 @Composable
@@ -237,14 +238,15 @@ private fun ThemeModeDialog(
                             .padding(horizontal = 4.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        RadioButton(
-                            selected = current == mode,
+                        Checkbox(
+                            state = if (current == mode) ToggleableState.On else ToggleableState.Off,
                             onClick = {
                                 onSelect(mode)
                                 onDismiss()
                             },
-                            colors = RadioButtonDefaults.colors(
-                                selectedColor = MaterialTheme.colorScheme.primary
+                            colors = CheckboxDefaults.checkboxColors(
+                                checkedBackgroundColor = MaterialTheme.colorScheme.primary,
+                                checkedForegroundColor = MaterialTheme.colorScheme.onPrimary
                             )
                         )
                         Text(
@@ -289,14 +291,15 @@ private fun ModifyModeDialog(
                             .padding(horizontal = 4.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        RadioButton(
-                            selected = current == mode,
+                        Checkbox(
+                            state = if (current == mode) ToggleableState.On else ToggleableState.Off,
                             onClick = {
                                 onSelect(mode)
                                 onDismiss()
                             },
-                            colors = RadioButtonDefaults.colors(
-                                selectedColor = MaterialTheme.colorScheme.primary
+                            colors = CheckboxDefaults.checkboxColors(
+                                checkedBackgroundColor = MaterialTheme.colorScheme.primary,
+                                checkedForegroundColor = MaterialTheme.colorScheme.onPrimary
                             )
                         )
                         Column(Modifier.padding(start = 8.dp)) {

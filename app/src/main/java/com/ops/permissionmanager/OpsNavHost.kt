@@ -158,9 +158,9 @@ private fun MainScaffold(onAppClick: (String, String) -> Unit) {
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp) // MIUI X 规范：悬浮胶囊底栏左右 16dp
+                .padding(horizontal = 48.dp) // 悬浮胶囊底栏左右 48dp（用户反馈 16dp 视觉过大，恢复原尺寸）
                 .navigationBarsPadding()
-                .padding(bottom = 10.dp), // MIUI X 规范：距底 10dp
+                .padding(bottom = 12.dp), // 距底 12dp
             shape = RoundedCornerShape(50),
             color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
             shadowElevation = 8.dp
@@ -168,7 +168,7 @@ private fun MainScaffold(onAppClick: (String, String) -> Unit) {
             BoxWithConstraints(Modifier.fillMaxWidth().padding(4.dp)) {
                 val f = maxWidth / topLevelDestinations.size
                 val position = pagerState.currentPage + pagerState.currentPageOffsetFraction
-                // MIUI X：选中指示胶囊用强调色 15% 底衬（规范 accent_tint），替代灰色块
+                // MIUI X：选中指示胶囊用 Monet 主题色 15% 底衬（跟随壁纸动态取色）
                 Box(
                     modifier = Modifier
                         .offset(x = f * position)
@@ -241,7 +241,7 @@ private fun RowScope.NavPill(
                     text = destination.label,
                     color = contentColor,
                     fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Bold // MIUI X：选中标签加粗（对齐 miuix NavigationBarItem）
                 )
             }
         }

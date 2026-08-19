@@ -94,10 +94,11 @@ fun OpsTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val controller = remember {
+    val controller = remember(darkTheme) {
         ThemeController(
             ColorSchemeMode.MonetSystem,
-            keyColor = Color(0xFF39C5BB)
+            keyColor = Color(0xFF39C5BB),
+            isDark = darkTheme
         )
     }
     MiuixTheme(controller = controller) {
