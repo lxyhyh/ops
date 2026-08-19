@@ -40,6 +40,7 @@ import com.ops.permissionmanager.core.ui.ErrorState
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import top.yukonga.miuix.kmp.squircle.squircleBackground
 import top.yukonga.miuix.kmp.squircle.squircleClip
 
 @Composable
@@ -154,13 +155,11 @@ private fun HistoryGroupCard(
     var expanded by remember { mutableStateOf(false) }
     val visible = if (expanded) records else records.take(GROUP_DEFAULT_LIMIT)
     val overflow = records.size - visible.size
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        ),
-        elevation = CardDefaults.cardElevation(0.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            // MIUI X：分组大卡片改用 G2 连续曲线圆角容器（squircleBackground）
+            .squircleBackground(MaterialTheme.colorScheme.surfaceContainer, 20.dp)
     ) {
         Column {
             Text(

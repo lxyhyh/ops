@@ -53,6 +53,7 @@ import com.ops.permissionmanager.core.model.OpGroup
 import com.ops.permissionmanager.core.model.OpMode
 import com.ops.permissionmanager.core.ui.ErrorState
 import com.ops.permissionmanager.core.ui.StatusChip
+import top.yukonga.miuix.kmp.squircle.squircleBackground
 import top.yukonga.miuix.kmp.squircle.squircleClip
 
 /** 权限分组大圆角卡片。 */
@@ -188,13 +189,11 @@ private fun AppGroupCard(
     items: List<AppOpState>,
     onRowClick: (AppOpState) -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(GroupCardRadius),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        ),
-        elevation = CardDefaults.cardElevation(0.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            // MIUI X：分组大卡片改用 G2 连续曲线圆角容器（squircleBackground）
+            .squircleBackground(MaterialTheme.colorScheme.surfaceContainer, GroupCardRadius)
     ) {
         Column {
             Text(
