@@ -176,7 +176,7 @@ private fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
         },
         singleLine = true,
         keyboardOptions = KeyboardOptions.Default,
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(24.dp), // MIUI X：搜索框胶囊化
         colors = TextFieldDefaults.colors(
             focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,

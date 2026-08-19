@@ -158,9 +158,9 @@ private fun MainScaffold(onAppClick: (String, String) -> Unit) {
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(horizontal = 48.dp)
+                .padding(horizontal = 16.dp) // MIUI X 规范：悬浮胶囊底栏左右 16dp
                 .navigationBarsPadding()
-                .padding(bottom = 12.dp),
+                .padding(bottom = 10.dp), // MIUI X 规范：距底 10dp
             shape = RoundedCornerShape(50),
             color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
             shadowElevation = 8.dp
