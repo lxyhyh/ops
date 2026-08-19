@@ -5,7 +5,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.theme.ColorSchemeMode
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.theme.ThemeController
 
 /**
  * 原版「初音绿」主题（静态配色，禁用动态取色）。
@@ -82,15 +86,24 @@ private val DarkColors = darkColorScheme(
 )
 
 /**
- * 与原版一致：仅暴露 darkTheme，固定使用静态色板，禁用动态取色。
+ * MIUI X 风格主题：外层用 miuix MiuixTheme 提供澎湃 UI（Monet 动态取色，初音绿 #39C5BB 种子色），
+ * 内层保留 MaterialTheme 原初音绿色板，供仍使用 Material3 组件的老页面无感过渡。
  */
 @Composable
 fun OpsTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    MaterialTheme(
-        colorScheme = if (darkTheme) DarkColors else LightColors,
-        content = content
-    )
+    val controller = remember {
+        ThemeController(
+            ColorSchemeMode.MonetSystem,
+            keyColor = Color(0xFF39C5BB)
+        )
+    }
+    MiuixTheme(controller = controller) {
+        MaterialTheme(
+            colorScheme = if (darkTheme) DarkColors else LightColors,
+            content = content
+        )
+    }
 }

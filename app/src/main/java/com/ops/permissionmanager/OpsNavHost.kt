@@ -168,13 +168,14 @@ private fun MainScaffold(onAppClick: (String, String) -> Unit) {
             BoxWithConstraints(Modifier.fillMaxWidth().padding(4.dp)) {
                 val f = maxWidth / topLevelDestinations.size
                 val position = pagerState.currentPage + pagerState.currentPageOffsetFraction
+                // MIUI X：选中指示胶囊用强调色 15% 底衬（规范 accent_tint），替代灰色块
                 Box(
                     modifier = Modifier
                         .offset(x = f * position)
                         .width(f)
                         .height(44.dp)
                         .clip(RoundedCornerShape(18.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
                 )
                 Row(Modifier.fillMaxWidth()) {
                     topLevelDestinations.forEachIndexed { index, dest ->

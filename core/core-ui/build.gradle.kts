@@ -27,6 +27,8 @@ kotlin {
 }
 
 dependencies {
+    implementation(libs.miuix)
+    implementation(libs.miuix.squircle)
     implementation(project(":core:core-model"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)

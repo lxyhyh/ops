@@ -2,7 +2,6 @@ package com.ops.permissionmanager.feature.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,13 +12,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
@@ -38,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ops.permissionmanager.core.model.ModifyMode
+import top.yukonga.miuix.kmp.preference.ArrowPreference
 
 @Composable
 fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
@@ -69,12 +66,9 @@ fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
             elevation = CardDefaults.cardElevation(0.dp)
         ) {
             Column(Modifier.padding(vertical = 4.dp)) {
-                SettingRow(
+                ArrowPreference(
                     title = "显示模式",
-                    subtitle = "当前：${uiState.themeMode.label}",
-                    trailing = {
-                        ArrowRightIcon()
-                    },
+                    summary = "当前：${uiState.themeMode.label}",
                     onClick = { showThemeDialog = true }
                 )
             }
@@ -90,37 +84,33 @@ fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
             elevation = CardDefaults.cardElevation(0.dp)
         ) {
             Column(Modifier.padding(vertical = 4.dp)) {
-                SettingRow(
+                ArrowPreference(
                     title = "修改方式",
-                    subtitle = "当前：${uiState.modifyMode.displayName}",
-                    trailing = {
-                        ArrowRightIcon()
-                    },
+                    summary = "当前：${uiState.modifyMode.displayName}",
                     onClick = { showModifyModeDialog = true }
                 )
                 HorizontalDivider(
                     color = MaterialTheme.colorScheme.outlineVariant,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
-                SettingRow(
+                ArrowPreference(
                     title = "Root 权限",
-                    subtitle = if (uiState.isRootAvailable) "已授予" else "未检测到",
-                    trailing = {
+                    summary = if (uiState.isRootAvailable) "已授予" else "未检测到",
+                    endActions = {
                         StatusChip(
                             label = if (uiState.isRootAvailable) "可用" else "不可用",
                             ok = uiState.isRootAvailable
                         )
-                    },
-                    onClick = null
+                    }
                 )
                 HorizontalDivider(
                     color = MaterialTheme.colorScheme.outlineVariant,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
-                SettingRow(
+                ArrowPreference(
                     title = "ADB (Shizuku)",
-                    subtitle = shizukuSubtitle(uiState),
-                    trailing = {
+                    summary = shizukuSubtitle(uiState),
+                    endActions = {
                         if (uiState.isShizukuBinderAvailable && !uiState.isShizukuPermissionGranted) {
                             TextButton(onClick = viewModel::requestShizukuPermission) {
                                 Text("去授权", color = MaterialTheme.colorScheme.primary)
@@ -131,8 +121,7 @@ fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
                                 ok = uiState.isShizukuBinderAvailable && uiState.isShizukuPermissionGranted
                             )
                         }
-                    },
-                    onClick = null
+                    }
                 )
             }
         }
@@ -147,37 +136,32 @@ fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
             elevation = CardDefaults.cardElevation(0.dp)
         ) {
             Column(Modifier.padding(vertical = 4.dp)) {
-                SettingRow(
+                ArrowPreference(
                     title = "应用版本",
-                    subtitle = "OPS 权限管家",
-                    trailing = {
+                    summary = "OPS 权限管家",
+                    endActions = {
                         Text(
                             text = "v" + uiState.versionName,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodyMedium
                         )
-                    },
-                    onClick = null
+                    }
                 )
                 HorizontalDivider(
                     color = MaterialTheme.colorScheme.outlineVariant,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
-                SettingRow(
+                ArrowPreference(
                     title = "说明",
-                    subtitle = "通过 Root 或 ADB (Shizuku) 管理 AppOps 应用操作权限",
-                    trailing = null,
-                    onClick = null
+                    summary = "通过 Root 或 ADB (Shizuku) 管理 AppOps 应用操作权限"
                 )
                 HorizontalDivider(
                     color = MaterialTheme.colorScheme.outlineVariant,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
-                SettingRow(
+                ArrowPreference(
                     title = "风险提示",
-                    subtitle = "修改系统权限可能导致应用异常或系统不稳定，请谨慎操作",
-                    trailing = null,
-                    onClick = null
+                    summary = "修改系统权限可能导致应用异常或系统不稳定，请谨慎操作"
                 )
             }
         }
@@ -198,15 +182,6 @@ fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
             onDismiss = { showModifyModeDialog = false }
         )
     }
-}
-
-@Composable
-private fun ArrowRightIcon() {
-    Icon(
-        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-        contentDescription = null,
-        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-    )
 }
 
 private fun shizukuSubtitle(state: SettingsUiState): String = when {
@@ -344,44 +319,4 @@ private fun ModifyModeDialog(
         },
         shape = RoundedCornerShape(24.dp)
     )
-}
-
-@Composable
-private fun SettingRow(
-    title: String,
-    subtitle: String,
-    trailing: (@Composable () -> Unit)?,
-    onClick: (() -> Unit)?
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(
-                if (onClick != null) {
-                    Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable(onClick = onClick)
-                } else {
-                    Modifier
-                }
-            )
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = title,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Medium,
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Text(
-                text = subtitle,
-                modifier = Modifier.padding(top = 2.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
-        trailing?.invoke()
-    }
 }

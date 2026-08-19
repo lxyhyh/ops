@@ -88,7 +88,6 @@ dependencies {
     implementation(libs.miuix)
     implementation(libs.miuix.preference)
     implementation(libs.miuix.squircle)
-    implementation(libs.miuix.blur)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.hilt.android)
