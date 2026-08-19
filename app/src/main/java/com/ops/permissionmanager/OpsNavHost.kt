@@ -30,10 +30,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Apps
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -53,6 +50,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.ops.permissionmanager.core.ui.TabIcons
 import com.ops.permissionmanager.feature.applist.AppDetailRoute
 import com.ops.permissionmanager.feature.applist.AppListRoute
 import com.ops.permissionmanager.feature.batch.BatchRoute
@@ -69,9 +67,10 @@ private data class TopLevelDestination(
 )
 
 private val topLevelDestinations = listOf(
-    TopLevelDestination(0, "应用", Icons.Filled.Apps),
-    TopLevelDestination(1, "批量", Icons.Filled.Tune),
-    TopLevelDestination(2, "历史", Icons.Filled.History),
+    // Apps/Tune/History 为自建 TabIcons（避免引入 material-icons-extended 全量库），Settings 用 icons-core
+    TopLevelDestination(0, "应用", TabIcons.Apps),
+    TopLevelDestination(1, "批量", TabIcons.Tune),
+    TopLevelDestination(2, "历史", TabIcons.History),
     TopLevelDestination(3, "设置", Icons.Filled.Settings)
 )
 
