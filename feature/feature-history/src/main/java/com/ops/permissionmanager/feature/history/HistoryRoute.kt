@@ -1,5 +1,6 @@
 package com.ops.permissionmanager.feature.history
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -22,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -140,11 +142,17 @@ fun HistoryScreen(
     }
 }
 
+/** 单包历史记录默认最多展示条数；超出部分折叠为“展开其余”一行，避免超大卡片全量渲染拖慢滚动。 */
+private const val GROUP_DEFAULT_LIMIT = 20
+
 @Composable
 private fun HistoryGroupCard(
     packageName: String,
     records: List<OpUsageRecord>
 ) {
+    var expanded by remember { mutableStateOf(false) }
+    val visible = if (expanded) records else records.take(GROUP_DEFAULT_LIMIT)
+    val overflow = records.size - visible.size
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -161,12 +169,28 @@ private fun HistoryGroupCard(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
-            records.forEachIndexed { index, record ->
+            visible.forEachIndexed { index, record ->
                 HistoryRecordRow(record)
-                if (index != records.lastIndex) {
+                if (index != visible.lastIndex) {
                     HorizontalDivider(
                         color = MaterialTheme.colorScheme.outlineVariant,
                         modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
+            }
+            if (overflow > 0) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { expanded = true }
+                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                ) {
+                    Text(
+                        text = "展开其余 $overflow 条记录",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
