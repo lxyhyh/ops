@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ops.permissionmanager.core.model.ModifyMode
+import com.ops.permissionmanager.core.ui.MiuiShapes
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 
 @Composable
@@ -59,7 +60,7 @@ fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
+            shape = MiuiShapes.squircle(20.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer
             ),
@@ -77,7 +78,7 @@ fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
+            shape = MiuiShapes.squircle(20.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer
             ),
@@ -129,7 +130,7 @@ fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
+            shape = MiuiShapes.squircle(20.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer
             ),
