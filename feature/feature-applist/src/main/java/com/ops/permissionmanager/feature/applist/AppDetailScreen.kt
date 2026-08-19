@@ -79,15 +79,11 @@ fun AppDetailRoute(
 
     Scaffold(
         modifier = Modifier.statusBarsPadding(), // 详情页为独立导航目的地，需自行避让状态栏（主界面外层已处理）
+        contentWindowInsets = WindowInsets(0, 0, 0, 0), // 外层已避让状态栏，禁止 Scaffold 再叠加系统 insets 造成内容区多余空白
         topBar = {
+            // 标题不重复：应用名大标题已在内容区展示，顶栏只保留返回箭头
             TopAppBar(
-                title = {
-                    Text(
-                        text = uiState.appName,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                },
+                title = {},
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -97,8 +93,7 @@ fun AppDetailRoute(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    titleContentColor = MaterialTheme.colorScheme.background
+                    containerColor = Color.Transparent
                 ),
                 windowInsets = WindowInsets(0, 0, 0, 0) // 已由外层 statusBarsPadding 处理，避免双倍内边距
             )
@@ -140,7 +135,7 @@ fun AppDetailScreen(
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = modifier.fillMaxSize(), // 必须应用外层 modifier（含 Scaffold 顶栏 padding），否则内容区与返回按钮重叠
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
