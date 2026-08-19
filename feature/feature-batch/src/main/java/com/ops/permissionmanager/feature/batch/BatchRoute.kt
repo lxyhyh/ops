@@ -62,6 +62,7 @@ import com.ops.permissionmanager.core.ui.AppTypeLabel
 import com.ops.permissionmanager.core.ui.CollapsingTitle
 import com.ops.permissionmanager.core.ui.ErrorState
 import com.ops.permissionmanager.core.ui.StatusChip
+import top.yukonga.miuix.kmp.squircle.squircleBackground
 import top.yukonga.miuix.kmp.squircle.squircleClip
 
 @Composable
@@ -143,15 +144,13 @@ fun BatchScreen(
                             collapsed = collapsed
                         )
 
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(20.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainer
-                            ),
-                            elevation = CardDefaults.cardElevation(0.dp)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                // MIUI X：批量配置大卡片改用 G2 连续曲线圆角容器（squircleBackground）
+                                .squircleBackground(MaterialTheme.colorScheme.surfaceContainer, 20.dp)
                         ) {
-                            Column {
+                                Column {
                                 SectionHeader("选择权限")
                                 OpSelector(
                                     selectedOp = uiState.selectedOp,
