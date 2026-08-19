@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.OpsPermissionManager" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- 冷启动性能/观感优化：windowBackground 设为应用浅色背景，
+         避免首帧前出现系统默认浅色空白造成的“卡一下”闪烁感。
+         深色模式对应 values-night/themes.xml。 -->
+    <style name="Theme.OpsPermissionManager" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#F2F2F2</item>
+    </style>
 </resources>

@@ -8,6 +8,8 @@ import com.ops.permissionmanager.core.model.OpUsageRecord
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Singleton
 class RealAppOpsRepository @Inject constructor(
@@ -21,9 +23,11 @@ class RealAppOpsRepository @Inject constructor(
         if (result.exitCode != 0) {
             throw AppOpsError.CommandFailed(result.exitCode, result.stderr)
         }
-        // 与原版一致：去重发生在 Repository 层（按 op 名），Parser 保持原样输出
-        val states = appOpsParser.parseGetOutput(result.stdout)
-            .distinctBy { it.op.name }
+        // 性能优化：命令已在 IO 执行，剩下的是纯 CPU 解析（正则/去重），切到 Default 避免占用主线程
+        val states = withContext(Dispatchers.Default) {
+            appOpsParser.parseGetOutput(result.stdout)
+                .distinctBy { it.op.name }
+        }
         return AppOpsState(packageName, states)
     }
 
@@ -49,7 +53,11 @@ class RealAppOpsRepository @Inject constructor(
         if (result.exitCode != 0) {
             throw AppOpsError.CommandFailed(result.exitCode, result.stderr)
         }
-        return appOpsParser.parseHistoryOutput(result.stdout)
+        // 性能优化：逐条记录的时间戳解析（LocalDateTime/atZone）是纯 CPU 重活，
+        // 历史量大时原实现会把主线程全部占满；切到 Default 线程池执行。
+        return withContext(Dispatchers.Default) {
+            appOpsParser.parseHistoryOutput(result.stdout)
+        }
     }
 
     private fun validatePackageName(packageName: String): String {

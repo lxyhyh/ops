@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 深色模式冷启动背景（与浅色 themes.xml 区分），消除首帧闪烁。 -->
+    <style name="Theme.OpsPermissionManager" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#121212</item>
+    </style>
+</resources>
