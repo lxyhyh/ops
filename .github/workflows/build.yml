@@ -49,6 +49,20 @@ jobs:
             :feature:feature-history:testDebugUnitTest \
             :feature:feature-settings:testDebugUnitTest
 
+      # 正式签名从 GitHub Secrets 临时装配（keys 与密码不写入仓库/日志）。
+      # 未配置 Secrets 时跳过，构建将回退 debug 签名（保证 CI 可跑）。
+      - name: 装配 release 签名（GitHub Secrets）
+        if: env.KEYSTORE_BASE64 != ''
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > app/ops-release.jks
+          printf 'storeFile=./ops-release.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+            "$KEYSTORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > app/keystore.properties
+
       - name: 编译正式版 APK
         run: ./gradlew :app:assembleRelease
 

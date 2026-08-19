@@ -8,3 +8,7 @@ build/
 captures
 .externalNativeBuild
 .cxx
+# 签名凭据严禁提交（正式签名 keys 与密码）
+*.jks
+*.keystore
+keystore.properties
