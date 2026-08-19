@@ -24,7 +24,7 @@
 
 ## 构建方法
 
-需要 JDK 17 和 Android SDK 36。
+需要 JDK 25 和 Android SDK 37。
 
 ```bash
 # 编译正式版 APK
@@ -68,9 +68,10 @@ app                  # 应用入口
 │   ├── data-appops  # AppOps 数据层（命令执行 + 输出解析）
 │   └── data-applist # 应用列表数据层
 └── feature
-    ├── feature-applist  # 应用列表页
+    ├── feature-applist  # 应用列表页 + 详情页
     ├── feature-batch    # 批量管理页
-    └── feature-history  # 权限历史页
+    ├── feature-history  # 权限历史页
+    └── feature-settings # 设置页 / 根引导
 ```
 
 核心设计：
@@ -82,10 +83,7 @@ app                  # 应用入口
 
 ## 相关文档
 
-- [PRD.md](PRD.md) — 产品需求文档
 - [DESIGN.md](DESIGN.md) — 技术设计文档
-- [ISSUES.md](ISSUES.md) — 开发任务拆分与进度
-- [plan.md](plan.md) — 开发计划
 
 ## 许可证
 
