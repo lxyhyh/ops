@@ -94,7 +94,7 @@ fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
                         if (showThemeMenu) {
                             OverlayListPopup(
                                 show = true,
-                                alignment = PopupPositionProvider.Align.Start,
+                                alignment = PopupPositionProvider.Align.End, // 右对齐箭头处（当前值在右侧）弹出
                                 enableWindowDim = false,
                                 onDismissRequest = { showThemeMenu = false }
                             ) {
@@ -143,7 +143,7 @@ fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
                         if (showModifyModeMenu) {
                             OverlayListPopup(
                                 show = true,
-                                alignment = PopupPositionProvider.Align.Start,
+                                alignment = PopupPositionProvider.Align.End, // 右对齐箭头处（当前值在右侧）弹出
                                 enableWindowDim = false,
                                 onDismissRequest = { showModifyModeMenu = false }
                             ) {

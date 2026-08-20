@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -57,6 +58,7 @@ import com.ops.permissionmanager.feature.batch.BatchRoute
 import com.ops.permissionmanager.feature.history.HistoryRoute
 import com.ops.permissionmanager.feature.settings.SettingsRoute
 import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.basic.Scaffold
 
 private const val TRANSITION_MS = 350
 
@@ -141,7 +143,12 @@ private fun MainScaffold(onAppClick: (String, String) -> Unit) {
     val batchListState = rememberLazyListState()
     val historyListState = rememberLazyListState()
 
-    Box(Modifier.fillMaxSize().statusBarsPadding()) {
+    // miuix Scaffold：为主界面四个页签提供 Overlay 弹窗宿主（透明背景，不影响现有布局）
+    Scaffold(
+        containerColor = Color.Transparent,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+    ) {
+        Box(Modifier.fillMaxSize().statusBarsPadding()) {
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize()
@@ -202,6 +209,7 @@ private fun MainScaffold(onAppClick: (String, String) -> Unit) {
                 }
             }
         }
+    }
     }
 }
 

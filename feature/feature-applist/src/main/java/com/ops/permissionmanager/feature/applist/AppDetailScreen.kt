@@ -18,22 +18,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -53,15 +47,15 @@ import com.ops.permissionmanager.core.model.OpGroup
 import com.ops.permissionmanager.core.model.OpMode
 import com.ops.permissionmanager.core.ui.ErrorState
 import com.ops.permissionmanager.core.ui.StatusChip
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.TopAppBar
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.squircle.squircleBackground
 import top.yukonga.miuix.kmp.squircle.squircleClip
 
 /** 权限分组大圆角卡片。 */
 private val GroupCardRadius = 20.dp
-/** 模式选择弹窗圆角。 */
-private val DialogRadius = 24.dp
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppDetailRoute(
     packageName: String,
@@ -79,13 +73,16 @@ fun AppDetailRoute(
         }
     }
 
+    // miuix Scaffold + TopAppBar（MIUI X 顶栏，兼作 OverlayDialog 弹窗宿主）
     Scaffold(
         modifier = Modifier.statusBarsPadding(), // 详情页为独立导航目的地，需自行避让状态栏（主界面外层已处理）
         contentWindowInsets = WindowInsets(0, 0, 0, 0), // 外层已避让状态栏，禁止 Scaffold 再叠加系统 insets 造成内容区多余空白
         topBar = {
             // 标题不重复：应用名大标题已在内容区展示，顶栏只保留返回箭头
             TopAppBar(
-                title = {},
+                title = "",
+                color = Color.Transparent,
+                defaultWindowInsetsPadding = false, // 已由外层 statusBarsPadding 处理，避免双倍内边距
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -93,11 +90,7 @@ fun AppDetailRoute(
                             contentDescription = "返回"
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                ),
-                windowInsets = WindowInsets(0, 0, 0, 0) // 已由外层 statusBarsPadding 处理，避免双倍内边距
+                }
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -266,57 +259,47 @@ private fun ModePickerDialog(
     onDismiss: () -> Unit,
     onSelect: (OpMode) -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
-        },
-        title = {
+    OverlayDialog(
+        show = true,
+        title = opState.op.displayName,
+        onDismissRequest = onDismiss
+    ) {
+        Column {
             Text(
-                text = opState.op.displayName,
-                fontWeight = FontWeight.Bold
+                text = "修改可能导致应用异常，请谨慎操作",
+                modifier = Modifier.padding(bottom = 12.dp),
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall
             )
-        },
-        text = {
-            Column {
-                Text(
-                    text = "修改可能导致应用异常，请谨慎操作",
-                    modifier = Modifier.padding(bottom = 12.dp),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
-                )
-                OpMode.entries.forEach { mode ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .squircleClip(12.dp)
-                            .clickable { onSelect(mode) }
-                            .padding(horizontal = 8.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+            OpMode.entries.forEach { mode ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .squircleClip(12.dp)
+                        .clickable { onSelect(mode) }
+                        .padding(horizontal = 8.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = mode.displayName,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (mode == opState.mode) {
                         Text(
-                            text = mode.displayName,
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.weight(1f)
+                            text = "当前",
+                            modifier = Modifier
+                                .background(
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    shape = RoundedCornerShape(6.dp)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 2.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelMedium
                         )
-                        if (mode == opState.mode) {
-                            Text(
-                                text = "当前",
-                                modifier = Modifier
-                                    .background(
-                                        color = MaterialTheme.colorScheme.primaryContainer,
-                                        shape = RoundedCornerShape(6.dp)
-                                    )
-                                    .padding(horizontal = 8.dp, vertical = 2.dp),
-                                color = MaterialTheme.colorScheme.primary,
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                        }
                     }
                 }
             }
-        },
-        shape = RoundedCornerShape(DialogRadius)
-    )
+        }
+    }
 }
