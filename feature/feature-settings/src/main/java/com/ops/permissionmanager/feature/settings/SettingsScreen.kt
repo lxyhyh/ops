@@ -2,6 +2,7 @@ package com.ops.permissionmanager.feature.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -36,17 +37,19 @@ import com.ops.permissionmanager.core.model.ModifyMode
 import com.ops.permissionmanager.core.ui.MiuiShapes
 import top.yukonga.miuix.kmp.basic.Checkbox
 import top.yukonga.miuix.kmp.basic.CheckboxDefaults
+import top.yukonga.miuix.kmp.basic.ListPopupColumn
+import top.yukonga.miuix.kmp.basic.PopupPositionProvider
 import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
+import top.yukonga.miuix.kmp.overlay.OverlayListPopup
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 
 @Composable
 fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var showThemeSheet by remember { mutableStateOf(false) }
-    var showModifyModeSheet by remember { mutableStateOf(false) }
+    var showThemeMenu by remember { mutableStateOf(false) }
+    var showModifyModeMenu by remember { mutableStateOf(false) }
 
-    // miuix Scaffold 提供弹窗容器（OverlayBottomSheet 依赖），透明背景不改变页面观感
+    // miuix Scaffold：Overlay 系列弹窗（锚定下拉小窗）依赖的宿主，透明背景不影响页面观感
     Scaffold(
         containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
@@ -75,18 +78,42 @@ fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
                 elevation = CardDefaults.cardElevation(0.dp)
             ) {
                 Column(Modifier.padding(vertical = 4.dp)) {
-                    // MIUI X：当前值显示在右侧（endActions），点击向下弹出选择窗
-                    ArrowPreference(
-                        title = "显示模式",
-                        endActions = {
-                            Text(
-                                text = uiState.themeMode.label,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        },
-                        onClick = { showThemeSheet = true }
-                    )
+                    // 显示模式：当前值在右侧，点击后在正下方弹出锚定小窗（OverlayListPopup）
+                    Box(Modifier.fillMaxWidth()) {
+                        ArrowPreference(
+                            title = "显示模式",
+                            endActions = {
+                                Text(
+                                    text = uiState.themeMode.label,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            },
+                            onClick = { showThemeMenu = true }
+                        )
+                        if (showThemeMenu) {
+                            OverlayListPopup(
+                                show = true,
+                                alignment = PopupPositionProvider.Align.Start,
+                                enableWindowDim = false,
+                                onDismissRequest = { showThemeMenu = false }
+                            ) {
+                                ListPopupColumn {
+                                    ThemeMode.entries.forEach { mode ->
+                                        ChoiceRow(
+                                            label = mode.label,
+                                            description = null,
+                                            selected = uiState.themeMode == mode,
+                                            onClick = {
+                                                viewModel.setThemeMode(mode)
+                                                showThemeMenu = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
             Spacer(Modifier.height(16.dp))
@@ -100,18 +127,42 @@ fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
                 elevation = CardDefaults.cardElevation(0.dp)
             ) {
                 Column(Modifier.padding(vertical = 4.dp)) {
-                    // MIUI X：当前值显示在右侧（endActions），点击向下弹出选择窗
-                    ArrowPreference(
-                        title = "修改方式",
-                        endActions = {
-                            Text(
-                                text = uiState.modifyMode.displayName,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        },
-                        onClick = { showModifyModeSheet = true }
-                    )
+                    // 修改方式：当前值在右侧，点击后在正下方弹出锚定小窗（OverlayListPopup）
+                    Box(Modifier.fillMaxWidth()) {
+                        ArrowPreference(
+                            title = "修改方式",
+                            endActions = {
+                                Text(
+                                    text = uiState.modifyMode.displayName,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            },
+                            onClick = { showModifyModeMenu = true }
+                        )
+                        if (showModifyModeMenu) {
+                            OverlayListPopup(
+                                show = true,
+                                alignment = PopupPositionProvider.Align.Start,
+                                enableWindowDim = false,
+                                onDismissRequest = { showModifyModeMenu = false }
+                            ) {
+                                ListPopupColumn {
+                                    ModifyMode.entries.forEach { mode ->
+                                        ChoiceRow(
+                                            label = mode.displayName,
+                                            description = mode.description,
+                                            selected = uiState.modifyMode == mode,
+                                            onClick = {
+                                                viewModel.setModifyMode(mode)
+                                                showModifyModeMenu = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                     HorizontalDivider(
                         color = MaterialTheme.colorScheme.outlineVariant,
                         modifier = Modifier.padding(horizontal = 16.dp)
@@ -190,48 +241,6 @@ fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
             }
             Spacer(Modifier.height(120.dp))
         }
-
-        if (showThemeSheet) {
-            OverlayBottomSheet(
-                show = true,
-                title = "显示模式",
-                onDismissRequest = { showThemeSheet = false }
-            ) {
-                Column(Modifier.padding(vertical = 8.dp)) {
-                    ThemeMode.entries.forEach { mode ->
-                        ChoiceRow(
-                            label = mode.label,
-                            selected = uiState.themeMode == mode,
-                            onClick = {
-                                viewModel.setThemeMode(mode)
-                                showThemeSheet = false
-                            }
-                        )
-                    }
-                }
-            }
-        }
-        if (showModifyModeSheet) {
-            OverlayBottomSheet(
-                show = true,
-                title = "修改方式",
-                onDismissRequest = { showModifyModeSheet = false }
-            ) {
-                Column(Modifier.padding(vertical = 8.dp)) {
-                    ModifyMode.entries.forEach { mode ->
-                        ChoiceRow(
-                            label = mode.displayName,
-                            description = mode.description,
-                            selected = uiState.modifyMode == mode,
-                            onClick = {
-                                viewModel.setModifyMode(mode)
-                                showModifyModeSheet = false
-                            }
-                        )
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -262,11 +271,11 @@ private fun StatusChip(label: String, ok: Boolean) {
     )
 }
 
-/** MIUI X：下拉选择窗中的选项行（左侧文字，右侧初音绿勾选框）。 */
+/** MIUI X：锚定小窗中的选项行（左侧文字，右侧初音绿勾选框）。 */
 @Composable
 private fun ChoiceRow(
     label: String,
-    description: String? = null,
+    description: String?,
     selected: Boolean,
     onClick: () -> Unit
 ) {
@@ -274,7 +283,7 @@ private fun ChoiceRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f)) {
