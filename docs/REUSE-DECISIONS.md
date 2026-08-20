@@ -38,7 +38,7 @@
 ### D3. 数据与图片层（已完成替换）
 | 能力点 | 检查过程 | 采用方案 | 状态 |
 |---|---|---|---|
-| 应用图标加载缓存 | 自实现 LruCache+IO → **Coil**（`context.imageLoader` 解码缓存） | **现成**：io.coil-kt:coil-compose 2.7.0 | ✅ |
+| 应用图标加载缓存 | 尝试 Coil 2.7.0 → **回退自实现 LruCache+IO**：Coil 传递引入 okhttp（+0.5MB 包体），本地 Drawable 场景无网络需求，替换收益为负 | **保留自造**（已实测对比记录） | ✅ 回退 |
 | Tab 图标 | 自绘 ImageVector（158 行 pathData）→ **material-icons-extended** 标准图标（R8 裁剪未用图标） | **现成**：androidx.compose.material 1.7.8 | ✅ |
 | 应用列表构建 | 磁盘缓存 + 内存缓存（TTL 30s），冷启动秒开 | **保留自造**：无现成库覆盖"PackageManager 列表+label+排序"业务组合 | 保留 |
 
