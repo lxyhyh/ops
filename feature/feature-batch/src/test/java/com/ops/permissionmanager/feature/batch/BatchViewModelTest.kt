@@ -219,6 +219,8 @@ class BatchViewModelTest {
             throwOnLoad?.let { throw it }
             return apps
         }
+
+        override suspend fun getCachedInstalledApps(): List<AppInfo>? = null
     }
 
     private class FakeAppOpsRepository(

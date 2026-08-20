@@ -5,4 +5,7 @@ import com.ops.permissionmanager.core.model.AppInfo
 /** 应用列表数据仓库。 */
 interface AppListRepository {
     suspend fun getInstalledApps(): List<AppInfo>
+
+    /** 读磁盘缓存中的应用列表（冷启动首屏秒开用），无缓存返回 null。 */
+    suspend fun getCachedInstalledApps(): List<AppInfo>?
 }

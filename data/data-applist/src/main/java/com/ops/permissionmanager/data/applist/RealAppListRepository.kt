@@ -7,6 +7,9 @@ import com.ops.permissionmanager.core.model.AppInfo
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -42,7 +45,54 @@ class RealAppListRepository @Inject constructor(
             .sortedBy { it.appName.lowercase() }
         cached = apps
         cachedAt = now
+        writeCacheFile(apps)
         apps
+    }
+
+    /**
+     * 读磁盘缓存中的应用列表（用于冷启动首屏秒开），无缓存返回 null。
+     * 磁盘缓存能避免每次冷启动都重新遍历 PackageManager（该操作在部分设备上可达数百毫秒）。
+     */
+    override suspend fun getCachedInstalledApps(): List<AppInfo>? = withContext(Dispatchers.IO) {
+        cached?.let { return@withContext it }
+        readCacheFile()
+    }
+
+    private fun cacheFile(): File {
+        val dir = File(context.filesDir, "ops_cache")
+        if (!dir.exists()) dir.mkdirs()
+        return File(dir, "app_list.json")
+    }
+
+    private fun readCacheFile(): List<AppInfo>? = runCatching {
+        val file = cacheFile()
+        if (!file.exists()) return null
+        val arr = JSONArray(file.readText())
+        buildList {
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                add(
+                    AppInfo(
+                        packageName = o.getString("p"),
+                        appName = o.getString("n"),
+                        isSystemApp = o.getBoolean("s")
+                    )
+                )
+            }
+        }
+    }.getOrNull()
+
+    private fun writeCacheFile(apps: List<AppInfo>) = runCatching {
+        val arr = JSONArray()
+        apps.forEach { app ->
+            arr.put(
+                JSONObject()
+                    .put("p", app.packageName)
+                    .put("n", app.appName)
+                    .put("s", app.isSystemApp)
+            )
+        }
+        cacheFile().writeText(arr.toString())
     }
 
     private companion object {
