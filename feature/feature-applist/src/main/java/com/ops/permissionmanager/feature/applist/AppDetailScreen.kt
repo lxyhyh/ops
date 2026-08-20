@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -48,7 +49,6 @@ import com.ops.permissionmanager.core.model.OpMode
 import com.ops.permissionmanager.core.ui.ErrorState
 import com.ops.permissionmanager.core.ui.StatusChip
 import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.squircle.squircleBackground
 import top.yukonga.miuix.kmp.squircle.squircleClip
@@ -73,27 +73,27 @@ fun AppDetailRoute(
         }
     }
 
-    // miuix Scaffold + TopAppBar（MIUI X 顶栏，兼作 OverlayDialog 弹窗宿主）
+    // miuix Scaffold：弹窗宿主 + snackbar 容器；顶栏仅返回箭头（自定义行，避免 miuix 大标题 TopAppBar 的额外高度空白）
     Scaffold(
         modifier = Modifier.statusBarsPadding(), // 详情页为独立导航目的地，需自行避让状态栏（主界面外层已处理）
         contentWindowInsets = WindowInsets(0, 0, 0, 0), // 外层已避让状态栏，禁止 Scaffold 再叠加系统 insets 造成内容区多余空白
         topBar = {
-            // 标题不重复：应用名大标题已在内容区展示，顶栏只保留返回箭头
-            TopAppBar(
-                title = "",
-                color = Color.Transparent,
-                defaultWindowInsetsPadding = false, // 已由外层 statusBarsPadding 处理，避免双倍内边距
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回"
-                        )
-                    }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp), // 标准工具栏高度
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // 标题不重复：应用名大标题已在内容区展示，顶栏只保留返回箭头
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "返回"
+                    )
                 }
-            )
+            }
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(state = snackbarHostState) }
     ) { padding ->
         AppDetailScreen(
             uiState = uiState,
