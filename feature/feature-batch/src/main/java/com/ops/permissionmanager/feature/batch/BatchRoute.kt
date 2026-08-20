@@ -24,19 +24,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Done
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
+import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -96,7 +96,7 @@ fun BatchRoute(
             onRetry = viewModel::loadApps
         )
         SnackbarHost(
-            hostState = snackbarHostState,
+            state = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
     }
@@ -264,11 +264,13 @@ private fun BatchFab(
                         if (uiState.total == 0) 0f
                         else uiState.progress.toFloat() / uiState.total
                     CircularProgressIndicator(
-                        progress = { fraction },
+                        progress = fraction,
                         modifier = Modifier.size(42.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 3.dp,
-                        trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
+                        colors = ProgressIndicatorDefaults.progressIndicatorColors(
+                            foregroundColor = MaterialTheme.colorScheme.onPrimary,
+                            backgroundColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
+                        ),
+                        strokeWidth = 3.dp
                     )
                     Text(
                         text = if (uiState.total == 0) "0%" else "${uiState.progress * 100 / uiState.total}%",
