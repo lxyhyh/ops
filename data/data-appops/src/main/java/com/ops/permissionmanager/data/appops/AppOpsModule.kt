@@ -18,7 +18,7 @@ abstract class AppOpsModule {
 
     @Binds
     @Singleton
-    abstract fun bindModifyModeRepository(impl: SharedPrefsModifyModeRepository): ModifyModeRepository
+    abstract fun bindModifyModeRepository(impl: DataStoreModifyModeRepository): ModifyModeRepository
 
     @Binds
     @Singleton

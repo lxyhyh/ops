@@ -29,6 +29,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.hilt.android)
     implementation("dev.rikka.shizuku:api:13.1.5")
+    implementation(libs.datastore.preferences)
     ksp(libs.hilt.compiler)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

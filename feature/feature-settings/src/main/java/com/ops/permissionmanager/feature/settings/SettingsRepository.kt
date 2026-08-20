@@ -1,46 +1,50 @@
 package com.ops.permissionmanager.feature.settings
 
 import android.content.Context
-import android.content.SharedPreferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import com.ops.permissionmanager.data.appops.opsDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 @Singleton
 class SettingsRepository @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
 
-    private val prefs: SharedPreferences =
-        context.getSharedPreferences(SettingsPrefKeys.PREFS_NAME, Context.MODE_PRIVATE)
+    private val dataStore = context.opsDataStore
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val _themeMode: MutableStateFlow<ThemeMode> = MutableStateFlow(loadThemeMode())
+    private val _themeMode: MutableStateFlow<ThemeMode> = MutableStateFlow(ThemeMode.SYSTEM)
 
     val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
 
-    fun setThemeMode(mode: ThemeMode) {
-        prefs.edit().putString(SettingsPrefKeys.KEY_THEME_MODE, mode.name).apply()
-        _themeMode.value = mode
+    init {
+        scope.launch {
+            val stored = dataStore.data.first()[SettingsPrefKeys.KEY_THEME_MODE]
+            _themeMode.value = stored
+                ?.let { name -> ThemeMode.entries.firstOrNull { it.name == name } }
+                ?: ThemeMode.SYSTEM
+        }
     }
 
-    private fun loadThemeMode(): ThemeMode {
-        val stored = prefs.getString(SettingsPrefKeys.KEY_THEME_MODE, null)
-            ?.let { name -> ThemeMode.entries.firstOrNull { it.name == name } }
-        if (stored != null) return stored
-        return if (prefs.getBoolean(SettingsPrefKeys.KEY_LEGACY_DARK_MODE, false)) {
-            ThemeMode.DARK
-        } else {
-            ThemeMode.SYSTEM
+    fun setThemeMode(mode: ThemeMode) {
+        _themeMode.value = mode
+        scope.launch {
+            dataStore.edit { it[SettingsPrefKeys.KEY_THEME_MODE] = mode.name }
         }
     }
 }
 
 internal object SettingsPrefKeys {
-    const val PREFS_NAME = "ops_settings"
-    const val KEY_THEME_MODE = "theme_mode"
-    @Deprecated("迁移到 KEY_THEME_MODE")
-    const val KEY_LEGACY_DARK_MODE = "dark_mode"
+    val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
 }

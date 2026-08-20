@@ -58,6 +58,11 @@ class BatchViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, message = null) }
             try {
+                // 第一步：先读磁盘缓存，有则立即展示，避免 PackageManager 遍历的等待
+                appListRepository.getCachedInstalledApps()?.let { cached ->
+                    _uiState.update { it.copy(isLoading = false, apps = cached) }
+                }
+                // 第二步：后台构建最新列表（内存/磁盘缓存也在此写入），对比后更新
                 val apps = appListRepository.getInstalledApps()
                 _uiState.update { it.copy(isLoading = false, apps = apps) }
             } catch (e: CancellationException) {

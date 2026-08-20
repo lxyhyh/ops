@@ -5,6 +5,11 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Root 命令执行器（保留原实现：libsu 需 JitPack 仓库且当前网络环境不可用）。
+ *
+ * 每条命令通过 ProcessBuilder 启动 su 进程执行，executeProcess 提供超时与流读取。
+ */
 @Singleton
 class RootCommandExecutor @Inject constructor() : CommandExecutor {
 
