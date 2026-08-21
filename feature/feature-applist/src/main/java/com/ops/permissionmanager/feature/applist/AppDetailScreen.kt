@@ -29,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,6 +46,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ops.permissionmanager.core.model.AppDetailInfo
 import com.ops.permissionmanager.core.model.AppOpState
+import com.ops.permissionmanager.core.model.AuditRecord
 import com.ops.permissionmanager.core.model.OpGroup
 import com.ops.permissionmanager.core.model.OpMode
 import com.ops.permissionmanager.core.ui.ErrorState
@@ -102,6 +104,7 @@ fun AppDetailRoute(
         AppDetailScreen(
             uiState = uiState,
             onModeSelect = viewModel::setMode,
+            onUndo = viewModel::undo,
             onRetry = viewModel::load,
             modifier = Modifier.padding(padding)
         )
@@ -112,6 +115,7 @@ fun AppDetailRoute(
 fun AppDetailScreen(
     uiState: AppDetailUiState,
     onModeSelect: (AppOpState, OpMode) -> Unit,
+    onUndo: (AppOpState) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -166,7 +170,9 @@ fun AppDetailScreen(
                             AppGroupCard(
                                 group = group,
                                 items = items,
-                                onRowClick = { pendingOp = it }
+                                recentAudits = uiState.recentAudits,
+                                onRowClick = { pendingOp = it },
+                                onUndo = onUndo
                             )
                         }
                     }
@@ -191,7 +197,9 @@ fun AppDetailScreen(
 private fun AppGroupCard(
     group: OpGroup,
     items: List<AppOpState>,
-    onRowClick: (AppOpState) -> Unit
+    recentAudits: Map<String, AuditRecord>,
+    onRowClick: (AppOpState) -> Unit,
+    onUndo: (AppOpState) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -210,7 +218,9 @@ private fun AppGroupCard(
             items.forEachIndexed { index, opState ->
                 AppOpRow(
                     opState = opState,
-                    onClick = { onRowClick(opState) }
+                    recentAudit = recentAudits[opState.op.name],
+                    onClick = { onRowClick(opState) },
+                    onUndo = { onUndo(opState) }
                 )
                 if (index < items.lastIndex) {
                     HorizontalDivider(
@@ -226,7 +236,9 @@ private fun AppGroupCard(
 @Composable
 private fun AppOpRow(
     opState: AppOpState,
-    onClick: () -> Unit
+    recentAudit: AuditRecord?,
+    onClick: () -> Unit,
+    onUndo: () -> Unit
 ) {
     val (labelText, labelColor) = when (opState.mode) {
         OpMode.ALLOW -> "允许" to MaterialTheme.colorScheme.primary
@@ -257,6 +269,23 @@ private fun AppOpRow(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.error
                     )
+                }
+            }
+            // 最近一次修改（审计）：显示旧值 → 新值，当前值等于修改后值时提供撤销
+            if (recentAudit != null) {
+                Text(
+                    text = "最近修改：${recentAudit.oldMode.displayName} → ${recentAudit.newMode.displayName} · ${formatAuditTime(recentAudit.timestampMillis)}",
+                    modifier = Modifier.padding(top = 2.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                )
+                if (recentAudit.newMode == opState.mode) {
+                    TextButton(
+                        onClick = onUndo,
+                        modifier = Modifier.padding(top = 2.dp)
+                    ) {
+                        Text("撤销到${recentAudit.oldMode.displayName}")
+                    }
                 }
             }
         }
@@ -368,4 +397,8 @@ private fun AppDetailInfoBlock(
 
 private val DETAIL_DATE_FORMATTER = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
+private val AUDIT_TIME_FORMATTER = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+
 private fun formatDate(millis: Long): String = DETAIL_DATE_FORMATTER.format(Date(millis))
+
+private fun formatAuditTime(millis: Long): String = AUDIT_TIME_FORMATTER.format(Date(millis))

@@ -18,6 +18,10 @@ abstract class AppOpsModule {
 
     @Binds
     @Singleton
+    abstract fun bindAuditRepository(impl: RealAuditRepository): AuditRepository
+
+    @Binds
+    @Singleton
     abstract fun bindModifyModeRepository(impl: DataStoreModifyModeRepository): ModifyModeRepository
 
     @Binds

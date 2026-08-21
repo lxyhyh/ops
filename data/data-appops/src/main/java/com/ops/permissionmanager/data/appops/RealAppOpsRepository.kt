@@ -3,6 +3,7 @@ package com.ops.permissionmanager.data.appops
 import com.ops.permissionmanager.core.model.AppOp
 import com.ops.permissionmanager.core.model.AppOpsError
 import com.ops.permissionmanager.core.model.AppOpsState
+import com.ops.permissionmanager.core.model.AuditRecord
 import com.ops.permissionmanager.core.model.OpMode
 import com.ops.permissionmanager.core.model.OpUsageRecord
 import javax.inject.Inject
@@ -14,7 +15,9 @@ import kotlinx.coroutines.withContext
 @Singleton
 class RealAppOpsRepository @Inject constructor(
     private val commandExecutor: CommandExecutor,
-    private val appOpsParser: AppOpsParser
+    private val appOpsParser: AppOpsParser,
+    private val auditRepository: AuditRepository,
+    private val modifyModeRepository: ModifyModeRepository
 ) : AppOpsRepository {
 
     override suspend fun getAppOps(packageName: String): AppOpsState {
@@ -34,17 +37,44 @@ class RealAppOpsRepository @Inject constructor(
     override suspend fun setAppOp(packageName: String, op: AppOp, mode: OpMode): Result<Unit> {
         val safe = validatePackageName(packageName)
         return try {
+            // 审计：修改前先查当前模式作为旧值（查询失败不阻断修改，旧值记 null 语义）
+            val oldMode = queryCurrentMode(safe, op.name)
             val result = commandExecutor.execute(
                 "cmd appops set $safe ${op.name} ${mode.commandValue}"
             )
             if (result.exitCode != 0) {
                 throw AppOpsError.CommandFailed(result.exitCode, result.stderr)
             }
+            if (oldMode != null && oldMode != mode) {
+                auditRepository.recordChange(
+                    AuditRecord(
+                        timestampMillis = System.currentTimeMillis(),
+                        packageName = safe,
+                        opName = op.name,
+                        opDisplayName = op.displayName,
+                        oldMode = oldMode,
+                        newMode = mode,
+                        channel = modifyModeRepository.modifyMode.value
+                    )
+                )
+            }
             Result.success(Unit)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    /**
+     * 查询单个权限当前模式（供审计旧值），失败或未找到返回 null。
+     * 使用 `cmd appops get <pkg> <op>` 轻量单查，避免全量输出。
+     */
+    private suspend fun queryCurrentMode(packageName: String, opName: String): OpMode? {
+        val result = commandExecutor.execute("cmd appops get $packageName $opName")
+        if (result.exitCode != 0) return null
+        return withContext(Dispatchers.Default) {
+            appOpsParser.parseGetOutput(result.stdout).firstOrNull()?.mode
         }
     }
 
