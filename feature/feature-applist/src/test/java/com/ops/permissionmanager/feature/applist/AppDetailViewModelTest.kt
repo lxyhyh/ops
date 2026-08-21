@@ -212,6 +212,26 @@ class AppDetailViewModelTest {
         assertTrue(repo.setOps.isEmpty())
     }
 
+@Test
+    fun `setMode 成功后局部更新不触发全量重查`() = runTest(dispatcher) {
+        val repo = FakeAppOpsRepository(appOpsState())
+        val vm = AppDetailViewModel(
+            repo,
+            FakeAppListRepository(null),
+            FakeAuditRepository(),
+            savedState()
+        )
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(1, repo.getCalls) // init load 一次
+
+        vm.setMode(opState, OpMode.DENY)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        // 性能回归保护：修改成功后就地更新，不再全量重查（省 getAppOps/getAppDetail/审计查询）
+        assertEquals(1, repo.getCalls)
+        assertEquals(OpMode.DENY, vm.uiState.value.appOps?.states?.first()?.mode)
+    }
+
     // ---------- 假实现 ----------
 
     private class FakeAppOpsRepository(
@@ -222,7 +242,11 @@ class AppDetailViewModelTest {
         val setOps = mutableListOf<String>()
         val setModes = mutableListOf<OpMode>()
 
+        /** getAppOps 调用次数（用于断言不重复全量重查）。 */
+        var getCalls = 0
+
         override suspend fun getAppOps(packageName: String): AppOpsState {
+            getCalls++
             error?.let { throw it }
             return state ?: AppOpsState(packageName, emptyList())
         }
