@@ -221,6 +221,8 @@ class BatchViewModelTest {
         }
 
         override suspend fun getCachedInstalledApps(): List<AppInfo>? = null
+
+        override suspend fun getAppDetail(packageName: String): com.ops.permissionmanager.core.model.AppDetailInfo? = null
     }
 
     private class FakeAppOpsRepository(

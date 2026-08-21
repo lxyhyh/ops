@@ -3,6 +3,7 @@ package com.ops.permissionmanager.data.applist
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import com.ops.permissionmanager.core.model.AppDetailInfo
 import com.ops.permissionmanager.core.model.AppInfo
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -57,6 +58,32 @@ class RealAppListRepository @Inject constructor(
         cached?.let { return@withContext it }
         readCacheFile()
     }
+
+    /**
+     * 详情页按需查询单个应用的诊断信息。
+     * 用 `PackageInfo` 补充版本/UID/目标SDK/安装时间等；失败（如包被卸载）返回 null。
+     * 性能：只查单个包，不影响应用列表的轻量加载（列表页不逐应用调 getPackageInfo）。
+     */
+    override suspend fun getAppDetail(packageName: String): AppDetailInfo? =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val pm = context.packageManager
+                val info = pm.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
+                val appInfo = info.applicationInfo ?: return@withContext null
+                AppDetailInfo(
+                    packageName = info.packageName,
+                    appName = pm.getApplicationLabel(appInfo)?.toString() ?: packageName,
+                    isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0,
+                    versionName = info.versionName,
+                    versionCode = info.longVersionCode,
+                    uid = appInfo.uid,
+                    targetSdk = appInfo.targetSdkVersion,
+                    enabled = appInfo.enabled,
+                    firstInstallTime = info.firstInstallTime.takeIf { it > 0 },
+                    lastUpdateTime = info.lastUpdateTime.takeIf { it > 0 }
+                )
+            }.getOrNull()
+        }
 
     private fun cacheFile(): File {
         val dir = File(context.filesDir, "ops_cache")

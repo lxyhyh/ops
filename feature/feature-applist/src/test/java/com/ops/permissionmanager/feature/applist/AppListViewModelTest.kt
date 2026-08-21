@@ -217,5 +217,7 @@ class AppListViewModelTest {
         }
 
         override suspend fun getCachedInstalledApps(): List<AppInfo>? = cachedApps
+
+        override suspend fun getAppDetail(packageName: String): com.ops.permissionmanager.core.model.AppDetailInfo? = null
     }
 }

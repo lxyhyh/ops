@@ -3,12 +3,16 @@ package com.ops.permissionmanager.feature.applist
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ops.permissionmanager.core.model.AppDetailInfo
 import com.ops.permissionmanager.core.model.AppOp
 import com.ops.permissionmanager.core.model.AppOpState
 import com.ops.permissionmanager.core.model.AppOpsState
 import com.ops.permissionmanager.core.model.OpMode
+import com.ops.permissionmanager.data.applist.AppListRepository
 import com.ops.permissionmanager.data.appops.AppOpsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,6 +25,8 @@ import javax.inject.Inject
 data class AppDetailUiState(
     val isLoading: Boolean = false,
     val appOps: AppOpsState? = null,
+    /** 应用详情诊断信息（版本/UID/目标SDK/安装时间等），查询失败为 null。 */
+    val detail: AppDetailInfo? = null,
     val error: String? = null,
     val message: String? = null,
     val appName: String = ""
@@ -29,6 +35,7 @@ data class AppDetailUiState(
 @HiltViewModel
 class AppDetailViewModel @Inject constructor(
     private val appOpsRepository: AppOpsRepository,
+    private val appListRepository: AppListRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -47,8 +54,13 @@ class AppDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             try {
-                val state = appOpsRepository.getAppOps(packageName)
-                _uiState.update { it.copy(isLoading = false, appOps = state) }
+                // 权限状态与诊断信息相互独立，并行拉取互不阻塞
+                val (state, detail) = coroutineScope {
+                    val ops = async { appOpsRepository.getAppOps(packageName) }
+                    val info = async { appListRepository.getAppDetail(packageName) }
+                    ops.await() to info.await()
+                }
+                _uiState.update { it.copy(isLoading = false, appOps = state, detail = detail) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

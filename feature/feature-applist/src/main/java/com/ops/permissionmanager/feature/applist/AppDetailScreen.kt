@@ -43,11 +43,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ops.permissionmanager.core.model.AppDetailInfo
 import com.ops.permissionmanager.core.model.AppOpState
 import com.ops.permissionmanager.core.model.OpGroup
 import com.ops.permissionmanager.core.model.OpMode
 import com.ops.permissionmanager.core.ui.ErrorState
 import com.ops.permissionmanager.core.ui.StatusChip
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.squircle.squircleBackground
@@ -148,6 +152,13 @@ fun AppDetailScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall
                             )
+                            // 应用详情诊断信息（按需查询，失败时静默隐藏）
+                            uiState.detail?.let { detail ->
+                                AppDetailInfoBlock(
+                                    detail = detail,
+                                    modifier = Modifier.padding(top = 8.dp)
+                                )
+                            }
                         }
                     }
                     state.grouped.forEach { (group, items) ->
@@ -303,3 +314,47 @@ private fun ModePickerDialog(
         }
     }
 }
+
+/** 应用详情诊断信息：版本/UID/目标SDK/类型/启用状态/安装与更新时间，逐行小字展示。 */
+@Composable
+private fun AppDetailInfoBlock(
+    detail: AppDetailInfo,
+    modifier: Modifier = Modifier
+) {
+    val lines = buildList {
+        // 版本行：优先 "版本 1.0.0 (100)"；无版本名时降级 "版本 (100)"
+        val version = buildString {
+            detail.versionName?.let { append("版本 $it") }
+            detail.versionCode?.let {
+                if (isNotEmpty()) append(" (") else append("版本 (")
+                append(it).append(")")
+            }
+        }
+        if (version.isNotEmpty()) add(version)
+
+        val identity = buildList {
+            detail.uid?.let { add("UID $it") }
+            detail.targetSdk?.let { add("目标 SDK $it") }
+        }
+        if (identity.isNotEmpty()) add(identity.joinToString(" · "))
+
+        add(if (detail.isSystemApp) "系统应用" else "用户应用")
+        detail.enabled?.let { add(if (it) "已启用" else "已禁用") }
+        detail.firstInstallTime?.let { add("安装于 ${formatDate(it)}") }
+        detail.lastUpdateTime?.let { add("更新于 ${formatDate(it)}") }
+    }
+
+    Column(modifier = modifier) {
+        lines.forEach { line ->
+            Text(
+                text = line,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+private val DETAIL_DATE_FORMATTER = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
+private fun formatDate(millis: Long): String = DETAIL_DATE_FORMATTER.format(Date(millis))
