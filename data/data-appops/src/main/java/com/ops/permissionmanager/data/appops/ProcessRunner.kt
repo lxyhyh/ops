@@ -10,7 +10,7 @@ import java.io.InputStream
 import java.io.InputStreamReader
 import java.util.concurrent.TimeUnit
 
-private const val MAX_READ_BYTES = 256 * 1024
+private const val MAX_READ_BYTES = 4 * 1024 * 1024
 private const val MAX_WAIT_SECONDS = 30L
 private const val DESTROY_WAIT_SECONDS = 10L
 

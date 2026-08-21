@@ -199,6 +199,26 @@ class RealAppOpsRepositoryTest {
         assertEquals("com.example.app", records[0].packageName)
     }
 
+    @Test
+    fun `getHistory TTL 内二次调用走缓存不重复执行命令`() = runTest {
+        val raw = """
+            Recent:
+              Package com.example.app:
+                RUN_IN_BACKGROUND (default):
+                  Access: 2026-08-17 10:00:00
+        """.trimIndent()
+        val executor = RecordingExecutor(ShellResult(raw, "", 0))
+        val repo = RealAppOpsRepository(executor, parser, FakeAuditRepository(), FakeModifyModeRepository(ModifyMode.AUTO))
+
+        val first = repo.getHistory()
+        val second = repo.getHistory()
+
+        assertEquals(1, first.size)
+        assertEquals(1, second.size)
+        // 性能回归保护：TTL 内二次加载不重复执行慢速 dumpsys
+        assertEquals(listOf("dumpsys appops"), executor.commands)
+    }
+
     private suspend fun assertThrowsInvalidPackage(block: suspend () -> Unit) {
         try {
             block()

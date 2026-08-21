@@ -5,20 +5,26 @@ import com.ops.permissionmanager.core.model.AuditRecord
 import com.ops.permissionmanager.core.model.ModifyMode
 import com.ops.permissionmanager.core.model.OpMode
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.File
+import java.util.concurrent.atomic.AtomicBoolean
+import javax.inject.Inject
+import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.File
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * 审计记录持久化实现（JSON 文件，本地不联网）。
  *
- * 进程内缓存最新列表，写操作经 Mutex 串行化并全量落盘（记录量小，可接受）；
+ * 性能：写入采用「内存先行 + 延迟合并落盘」——批量执行等连续修改只触发一次全量写，
+ * 避免每次修改都全量解析/写文件（写放大）。读取走进程内缓存，仅首次冷读文件。
  * 超过 [MAX_RECORDS] 条时丢弃最旧记录，防止文件无限膨胀。
  */
 @Singleton
@@ -27,6 +33,11 @@ class RealAuditRepository @Inject constructor(
 ) : AuditRepository {
 
     private val mutex = Mutex()
+
+    /** 延迟落盘调度标记：true 表示已有待执行的保存任务，避免重复调度。 */
+    private val saveScheduled = AtomicBoolean(false)
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     @Volatile
     private var records: List<AuditRecord>? = null
@@ -91,7 +102,22 @@ class RealAuditRepository @Inject constructor(
             current.add(0, record) // 最新在前
             val trimmed = if (current.size > MAX_RECORDS) current.take(MAX_RECORDS) else current
             records = trimmed
-            save(trimmed)
+        }
+        scheduleSave()
+    }
+
+    /**
+     * 延迟合并落盘：连续修改（如批量执行）共享一个保存窗口，只写一次。
+     * 内存状态立即可读，落盘失败不影响进程内正确性。
+     */
+    private fun scheduleSave() {
+        if (!saveScheduled.compareAndSet(false, true)) return
+        scope.launch {
+            delay(SAVE_DELAY_MS)
+            saveScheduled.set(false)
+            mutex.withLock {
+                save(records ?: emptyList())
+            }
         }
     }
 
@@ -116,5 +142,8 @@ class RealAuditRepository @Inject constructor(
 
     private companion object {
         const val MAX_RECORDS = 500
+
+        /** 落盘合并窗口：此窗口内的连续修改只写一次文件。 */
+        const val SAVE_DELAY_MS = 500L
     }
 }

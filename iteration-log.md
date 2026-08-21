@@ -2,6 +2,32 @@
 
 按 operit-vibe-coding 技能记录每轮增量：目标 → 验证 → 结果。
 
+## 2026-08-22：性能优化专项（运行提速 + 资源消耗降低）
+
+**目标**：识别并消除热点——启动/页面加载提速、减少 CPU/IO/内存浪费。
+
+**热点识别（静态分析 + 代码证据）**：
+1. 审计写入放大：`RealAuditRepository.recordChange` 每次修改全量解析+写文件，批量 100 项 → 100 次全量读写
+2. 图标重复 IO：加载失败不入缓存，滚动回来重复 `getApplicationIcon`；同一包并发重组重复发起加载
+3. `ProcessRunner` 单流上限 256KB：`dumpsys appops` 全量输出可能被截断（历史记录不全，正确性问题）
+4. 历史页重复执行慢速 `dumpsys appops`（导航重建/重试场景）
+
+**实施（单一变更、逐项验证）**：
+- 审计写入合并：内存先行 + 500ms 延迟落盘合并窗口（批量执行 N 次全量写 → 1 次）
+- 图标：失败缓存（`failedIcons` 集合）、进行中去重（`loadingIcons`）、LruCache 改 count-based 256 项（约 16MB 上限，避免缓存抖动）
+- `ProcessRunner.MAX_READ_BYTES` 256KB → 4MB（历史完整性）
+- `getHistory()` 内存缓存 TTL 60s（避免重复 dumpsys）
+
+**验证**：全量 `testDebugUnitTest` 全绿（含新增缓存回归测试 `getHistory TTL 内二次调用走缓存`）✅ + `:app:assembleRelease` ✅ + apksigner v2 ✅
+
+**产物**：`/sdcard/Download/OpsPermissionManager-MIUIX.apk`（4.17MB，v0.2.0）
+
+**已评估并有意保留**（避免过度优化/破坏语义）：
+- 批量执行保持串行（逐条结果/失败重试粒度；并发 root 命令有竞态风险）
+- 批量进度更新保持全 state 更新（进度指示必需，LazyColumn 只重组可见项）
+- 图标绘制尺寸保持 128×128（3x 密度下 42dp 显示的合理超采样）
+- 应用列表 JSON 缓存用 org.json（平台内置，单次读写 <1ms）
+
 ## 2026-08-21：v0.2.0 功能体验增强 + 安全可靠性 + 发布治理（优化改进计划）
 
 **目标**：按「优化改进计划」执行——功能与体验优先，本机验证为主，发布治理纳入。

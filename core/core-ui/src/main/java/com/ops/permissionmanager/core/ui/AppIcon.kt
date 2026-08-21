@@ -9,6 +9,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -17,10 +18,19 @@ import kotlinx.coroutines.withContext
  *
  * 自实现 LruCache + IO 异步（决策记录见 docs/REUSE-DECISIONS.md D3）：
  * Coil 对本地应用图标场景无优势且传递引入 okhttp（+0.5MB 包体），故回退自实现。
+ *
+ * 性能：按条目数（256）而非字节计——128×128 ARGB_8888 约 64KB/个，256 项约 16MB 上限；
+ * 对滚动列表足够（可见项 10~15 个），且避免字节计算开销与缓存抖动。
  */
-private val iconCache = object : LruCache<String, ImageBitmap>(20 * 1024 * 1024) {
+private val iconCache = object : LruCache<String, ImageBitmap>(256) {
     override fun sizeOf(key: String, value: ImageBitmap): Int = value.width * value.height * 4
 }
+
+/** 加载失败的包名集合：失败后不再重复发起 IO 加载（滚动回来直接显示占位）。 */
+private val failedIcons = ConcurrentHashMap.newKeySet<String>()
+
+/** 正在加载中的包名集合：同一包名并发重组时只发起一次 IO 任务。 */
+private val loadingIcons = ConcurrentHashMap.newKeySet<String>()
 
 /**
  * 将 Drawable 绘制到固定尺寸的 ARGB_8888 Bitmap 上（与原版 Drawable.toBitmap(128,128)
@@ -45,11 +55,19 @@ fun rememberAppIcon(packageName: String): ImageBitmap? {
     val context = LocalContext.current
     val icon by produceState<ImageBitmap?>(initialValue = null, packageName) {
         iconCache.get(packageName)?.let { value = it; return@produceState }
-        value = withContext(Dispatchers.IO) {
-            runCatching {
-                val drawable = context.packageManager.getApplicationIcon(packageName)
-                drawable.toBitmapSized(128, 128).asImageBitmap()
-            }.getOrNull()?.also { iconCache.put(packageName, it) }
+        if (packageName in failedIcons) return@produceState
+        // 去重：同一包名正在加载时跳过本次（完成后缓存可命中，下次重组即显示）
+        if (!loadingIcons.add(packageName)) return@produceState
+        try {
+            value = withContext(Dispatchers.IO) {
+                runCatching {
+                    val drawable = context.packageManager.getApplicationIcon(packageName)
+                    drawable.toBitmapSized(128, 128).asImageBitmap()
+                }.getOrNull()?.also { iconCache.put(packageName, it) }
+            }
+            if (value == null) failedIcons.add(packageName)
+        } finally {
+            loadingIcons.remove(packageName)
         }
     }
     return icon
