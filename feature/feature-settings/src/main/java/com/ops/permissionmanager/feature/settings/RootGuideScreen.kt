@@ -29,7 +29,10 @@ import androidx.compose.ui.unit.sp
 import com.ops.permissionmanager.core.ui.MiuiShapes
 
 @Composable
-fun RootGuideScreen(onRetry: () -> Unit) {
+fun RootGuideScreen(
+    uiState: RootCheckUiState,
+    onRetry: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -66,6 +69,16 @@ fun RootGuideScreen(onRetry: () -> Unit) {
                     text = "本应用通过 Root 或 ADB (Shizuku) 管理 AppOps 应用操作权限（后台运行、剪贴板、通知等）。当前设备未检测到可用的 Root 或 ADB 环境，请选择以下任一方式配置。",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = environmentHint(uiState),
+                    modifier = Modifier.padding(top = 10.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (uiState.isAnyAvailable) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    }
                 )
             }
         }
@@ -188,4 +201,12 @@ private fun GuideStep(number: String, text: String) {
             color = MaterialTheme.colorScheme.onSurface
         )
     }
+}
+
+/** 根据环境检测结果生成差异化提示：区分 Root 可用 / Shizuku 可用 / 未安装 / 未授权。 */
+private fun environmentHint(uiState: RootCheckUiState): String = when {
+    uiState.isRootAvailable -> "✓ 已检测到 Root（su 可用），可直接管理权限"
+    uiState.isShizukuAvailable -> "✓ 已检测到 Shizuku（已授权），可直接管理权限"
+    !uiState.isShizukuInstalled -> "未检测到 Shizuku 应用，请先安装（见下方方式一）"
+    else -> "已安装 Shizuku 但未授权，请在 Shizuku 中授予权限后重试"
 }

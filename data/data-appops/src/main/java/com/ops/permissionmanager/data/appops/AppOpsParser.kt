@@ -37,6 +37,7 @@ class AppOpsParser @Inject constructor() {
         val records = mutableListOf<OpUsageRecord>()
         var currentPackage: String? = null
         var currentOp: String? = null
+        var currentUid: Int? = null
 
         for (line in raw.lineSequence()) {
             val trimmed = line.trim()
@@ -44,6 +45,7 @@ class AppOpsParser @Inject constructor() {
                 trimmed.startsWith("Uid ") -> {
                     currentPackage = null
                     currentOp = null
+                    currentUid = trimmed.removePrefix("Uid").substringBefore(":").trim().toIntOrNull()
                 }
                 trimmed.startsWith("Package ") && trimmed.endsWith(":") -> {
                     currentPackage = trimmed.removePrefix("Package ").dropLast(1).trim()
@@ -56,19 +58,38 @@ class AppOpsParser @Inject constructor() {
                 else -> {
                     val pkg = currentPackage
                     val op = currentOp
-                    if (pkg != null && op != null &&
-                        (trimmed.startsWith("Access:") || trimmed.startsWith("Reject:"))
-                    ) {
+                    val accessType = when {
+                        trimmed.startsWith("Access:") -> "Access"
+                        trimmed.startsWith("Reject:") -> "Reject"
+                        else -> null
+                    }
+                    if (pkg != null && op != null && accessType != null) {
                         val timestamp = parseTimestamp(trimmed)
                         if (timestamp != null) {
                             // 与原版一致：每条记录独立保留，不去重
-                            records.add(OpUsageRecord(pkg, op, timestamp))
+                            records.add(
+                                OpUsageRecord(
+                                    packageName = pkg,
+                                    opName = op,
+                                    timestampMillis = timestamp,
+                                    count = parseCount(trimmed),
+                                    accessType = accessType,
+                                    uid = currentUid
+                                )
+                            )
                         }
                     }
                 }
             }
         }
         return records
+    }
+
+    /** 解析 Access/Reject 行时间戳之后的次数（如 "[...] 3"），缺省为 1。 */
+    private fun parseCount(trimmed: String): Int {
+        val tsMatch = TIMESTAMP_REGEX.find(trimmed) ?: return 1
+        val tail = trimmed.substring(tsMatch.range.last + 1)
+        return COUNT_REGEX.find(tail)?.value?.toIntOrNull() ?: 1
     }
 
     private fun isOpName(name: String): Boolean {
@@ -92,6 +113,8 @@ class AppOpsParser @Inject constructor() {
         private val GET_LINE_REGEX = Regex("""([A-Z_]+):\s*(\w+)(?:;.*)?""")
         // 与原版一致：时间戳小数位不限
         private val TIMESTAMP_REGEX = Regex("""\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:\.\d+)?""")
+        /** Access/Reject 行时间戳之后的次数（如 "[...] 3"）。 */
+        private val COUNT_REGEX = Regex("""(\d+)""")
         private val TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.SSS]")
         private val INSTANCE by lazy { AppOpsParser() }
         fun parseGetOutput(raw: String): List<AppOpState> = INSTANCE.parseGetOutput(raw)

@@ -94,6 +94,11 @@ class RealAppListRepository @Inject constructor(
     private fun readCacheFile(): List<AppInfo>? = runCatching {
         val file = cacheFile()
         if (!file.exists()) return null
+        // 缓存一致性：磁盘缓存超过有效期视为过期，跳过冷启动快路径走全量刷新，
+        // 避免应用安装/卸载后长时间展示陈旧列表
+        if (System.currentTimeMillis() - file.lastModified() > CACHE_FILE_TTL_MS) {
+            return null
+        }
         val arr = JSONArray(file.readText())
         buildList {
             for (i in 0 until arr.length()) {
@@ -125,5 +130,8 @@ class RealAppListRepository @Inject constructor(
     private companion object {
         /** 缓存有效期：应用列表在进程内变化频率低，30s 足够避免重复查询又不至于陈旧。 */
         const val CACHE_TTL_MS = 30_000L
+
+        /** 磁盘缓存文件有效期：超过则视为过期（防安装/卸载后列表陈旧），10 分钟。 */
+        const val CACHE_FILE_TTL_MS = 10 * 60 * 1000L
     }
 }

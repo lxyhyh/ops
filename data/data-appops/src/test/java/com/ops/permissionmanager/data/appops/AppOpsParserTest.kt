@@ -147,7 +147,16 @@ class AppOpsParserTest {
         assertEquals(4, records.size)
         assertEquals("com.example.app", records[0].packageName)
         assertEquals("RUN_IN_BACKGROUND", records[0].opName)
-        assertEquals(OpUsageRecord("com.example.app", "RUN_IN_BACKGROUND", 0).copy(timestampMillis = records[0].timestampMillis), records[0])
+        // 解析器增强后携带 accessType（原断言不含新字段，此处显式匹配）
+        assertEquals(
+            OpUsageRecord(
+                "com.example.app",
+                "RUN_IN_BACKGROUND",
+                records[0].timestampMillis,
+                accessType = "Access"
+            ),
+            records[0]
+        )
         assertEquals("com.example.app", records[1].packageName)
         assertEquals("RUN_IN_BACKGROUND", records[1].opName)
         assertEquals("com.example.app", records[2].packageName)
@@ -229,6 +238,49 @@ class AppOpsParserTest {
 
         assertEquals(1, records.size)
         assertEquals("READ_CLIPBOARD", records[0].opName)
+    }
+
+    @Test
+    fun `parseHistoryOutput 提取 UID 与访问类型和次数`() {
+        // Android 13+ 典型格式：Uid 段头 + 括号时间戳 + 次数
+        val raw = """
+            Uid 10123:
+              Package com.example.app:
+                RUN_IN_BACKGROUND (default):
+                  Access: [2026-08-17 10:00:00.123]3
+                  Reject: [2026-08-17 11:00:00]1
+        """.trimIndent()
+
+        val records = parser.parseHistoryOutput(raw)
+
+        assertEquals(2, records.size)
+        val access = records[0]
+        assertEquals("Access", access.accessType)
+        assertEquals(3, access.count)
+        assertEquals(10123, access.uid)
+        assertEquals("com.example.app", access.packageName)
+        assertEquals("RUN_IN_BACKGROUND", access.opName)
+        val reject = records[1]
+        assertEquals("Reject", reject.accessType)
+        assertEquals(1, reject.count)
+        assertEquals(10123, reject.uid)
+    }
+
+    @Test
+    fun `parseHistoryOutput 无次数无 UID 时降级默认值`() {
+        // 旧格式：无括号、无次数、无 Uid 段头
+        val raw = """
+            Package com.old.app:
+              READ_PHONE_STATE (default):
+                Access: 2026-08-17 10:00:00
+        """.trimIndent()
+
+        val records = parser.parseHistoryOutput(raw)
+
+        assertEquals(1, records.size)
+        assertEquals(1, records[0].count)
+        assertEquals("Access", records[0].accessType)
+        assertEquals(null, records[0].uid)
     }
 
     private fun epochMillis(dateTime: String): Long =

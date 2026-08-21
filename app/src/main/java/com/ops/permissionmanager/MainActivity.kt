@@ -73,6 +73,6 @@ fun OpsApp(modifier: Modifier = Modifier) {
             }
         }
         uiState.isAnyAvailable -> OpsNavHost(modifier = modifier)
-        else -> RootGuideScreen(onRetry = viewModel::checkAvailability)
+        else -> RootGuideScreen(uiState = uiState, onRetry = viewModel::checkAvailability)
     }
 }
