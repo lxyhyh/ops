@@ -2,6 +2,34 @@
 
 按 operit-vibe-coding 技能记录每轮增量：目标 → 验证 → 结果。
 
+## 2026-08-21：v0.2.0 功能体验增强 + 安全可靠性 + 发布治理（优化改进计划）
+
+**目标**：按「优化改进计划」执行——功能与体验优先，本机验证为主，发布治理纳入。
+
+**阶段一：功能与体验**
+- 1.1 应用列表搜索过滤下沉 ViewModel（`filterApps` 纯函数可单测）、空结果态（区分无应用/无匹配+清除搜索）、过滤状态持久；新增 AppListViewModelTest 12 例
+- 1.2 详情页诊断信息（版本/UID/目标SDK/启用/安装时间）：新增 `AppDetailInfo` + `getAppDetail` 按需查询，不影响列表秒开
+- 1.3 批量页：执行前确认窗（权限→模式+目标预览+高危警示）、41 项高危 AppOps 分级（`AppOp.isHighRisk`，批量/详情页标注）、失败项单条重试（`BatchResultItem` 携带 op/mode）；新增 BatchViewModelTest 3 例
+
+**阶段二：安全与可靠性**
+- 2.1 权限修改审计：`AuditRecord` + `AuditRepository`（JSON 本地持久化，500 条上限），`setAppOp` 自动记录旧值/新值/通道；详情页「最近修改」展示 + 一键撤销；新增 RealAppOpsRepositoryTest 3 例
+- 2.2 兼容性：历史解析保留 Access/Reject 类型、次数、UID（旧格式降级）；引导页区分 Root 可用 / Shizuku 未装 / 已装未授权；新增 AppOpsParserTest 2 例
+- 2.3 缓存一致性：磁盘缓存 10 分钟过期失效
+
+**阶段三：测试与性能门禁**
+- 新增 AppDetailViewModelTest 7 例（加载/设置/撤销）
+- docs/BENCHMARKS.md 性能门禁（Macrobenchmark 手动触发 + 基线记录规则）
+- 说明：Settings/RealAppList 的 Robolectric 与 Shizuku 反射执行器 JVM 测试受 Android 运行时依赖限制，暂以本机验证覆盖（已记录）
+
+**阶段四：发布治理**
+- LICENSE（Apache-2.0）、PRIVACY.md、CHANGELOG.md
+- 版本号 → v0.2.0（versionCode 2）
+- CI：无 Secrets 时 artifact 后缀 `debug-signed`（防误用）；OSV 依赖漏洞扫描（报告不阻断）
+
+**验证**：7 个模块 `testDebugUnitTest` 全绿 + `:app:assembleRelease` ✅ + apksigner v2 签名 ✅，提交 145f137..9997a20 全部推送，CI 自动触发。
+
+**产物**：`/sdcard/Download/OpsPermissionManager-MIUIX.apk`（4.17MB，v0.2.0）
+
 ## 2026-08-21：去轮子化专项（复用优先审计）
 
 **目标**：审计并消除项目中自造轮子，全面改用现成库/组件；修复批量页加载慢。
