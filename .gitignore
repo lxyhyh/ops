@@ -12,3 +12,6 @@ captures
 *.jks
 *.keystore
 keystore.properties
+
+# 本地编译脚本（不入库）
+build.sh
