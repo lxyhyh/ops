@@ -80,10 +80,10 @@ jobs:
         run: ./gradlew :app:dependencies --write-locks -q || true
       - name: OSV 依赖漏洞扫描（报告不阻断）
         continue-on-error: true
-        uses: google/osv-scanner-action@v1.0.4
-        with:
-          scan-args: |
-            -r .
+        run: |
+          curl -sL https://github.com/google/osv-scanner/releases/latest/download/osv-scanner-linux-amd64 -o /tmp/osv-scanner
+          chmod +x /tmp/osv-scanner
+          /tmp/osv-scanner -r . || true
       - name: 上传测试报告
         uses: actions/upload-artifact@v4
         if: always()
