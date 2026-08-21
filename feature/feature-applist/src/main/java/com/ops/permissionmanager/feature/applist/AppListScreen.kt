@@ -25,13 +25,12 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,6 +67,8 @@ fun AppListRoute(
         uiState = uiState,
         onAppClick = onAppClick,
         onRetry = viewModel::loadApps,
+        onQueryChange = viewModel::setQuery,
+        onFilterSelect = viewModel::setFilter,
         listState = listState
     )
 }
@@ -77,10 +78,10 @@ fun AppListScreen(
     uiState: AppListUiState,
     onAppClick: (String, String) -> Unit,
     onRetry: () -> Unit,
+    onQueryChange: (String) -> Unit,
+    onFilterSelect: (AppFilter) -> Unit,
     listState: LazyListState
 ) {
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedFilter by remember { mutableStateOf(AppFilter.All) }
     val collapsed by remember {
         derivedStateOf {
             listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
@@ -97,22 +98,6 @@ fun AppListScreen(
             ErrorState(message = uiState.error, onRetry = onRetry)
         }
         else -> {
-            // 性能优化：过滤结果缓存，避免每次重组（如输入搜索）都全量重算。
-            // 仅在 apps / 筛选条件 / 搜索词变化时重算。行为与之前完全一致。
-            val filtered = remember(uiState.apps, searchQuery, selectedFilter) {
-                uiState.apps.filter { app ->
-                    val matchFilter = when (selectedFilter) {
-                        AppFilter.All -> true
-                        AppFilter.System -> app.isSystemApp
-                        AppFilter.User -> !app.isSystemApp
-                    }
-                    matchFilter && (
-                        app.appName.contains(searchQuery, ignoreCase = true) ||
-                            app.packageName.contains(searchQuery, ignoreCase = true)
-                        )
-                }
-            }
-
             Column(Modifier.fillMaxSize()) {
                 Column(
                     modifier = Modifier
@@ -125,31 +110,47 @@ fun AppListScreen(
                         collapsed = collapsed
                     )
                     SearchBar(
-                        query = searchQuery,
-                        onQueryChange = { searchQuery = it }
+                        query = uiState.query,
+                        onQueryChange = onQueryChange
                     )
                     FilterChips(
-                        selected = selectedFilter,
-                        onSelect = { selectedFilter = it }
+                        selected = uiState.filter,
+                        onSelect = onFilterSelect
                     )
                 }
 
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        start = 16.dp,
-                        top = 4.dp,
-                        end = 16.dp,
-                        bottom = 120.dp
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    items(filtered, key = { it.packageName }) { app ->
-                        AppListItem(
-                            app = app,
-                            onClick = { onAppClick(app.packageName, app.appName) }
-                        )
+                if (uiState.apps.isEmpty()) {
+                    // 应用列表本身为空（非过滤导致）
+                    EmptyHint(
+                        title = "暂无应用",
+                        subtitle = "未检测到已安装应用"
+                    )
+                } else if (uiState.filteredApps.isEmpty()) {
+                    // 搜索/筛选无匹配
+                    EmptyHint(
+                        title = "未找到匹配应用",
+                        subtitle = "换个关键词，或清除搜索与筛选试试",
+                        onActionLabel = "清除搜索",
+                        onAction = { onQueryChange("") }
+                    )
+                } else {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = 16.dp,
+                            top = 4.dp,
+                            end = 16.dp,
+                            bottom = 120.dp
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(uiState.filteredApps, key = { it.packageName }) { app ->
+                            AppListItem(
+                                app = app,
+                                onClick = { onAppClick(app.packageName, app.appName) }
+                            )
+                        }
                     }
                 }
             }
@@ -256,5 +257,44 @@ private fun AppListItem(app: AppInfo, onClick: () -> Unit) {
                 .padding(start = 4.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
         )
+    }
+}
+
+/** 列表空态提示：区分「无应用」与「搜索/筛选无匹配」，后者提供清除搜索入口。 */
+@Composable
+private fun EmptyHint(
+    title: String,
+    subtitle: String,
+    onActionLabel: String? = null,
+    onAction: (() -> Unit)? = null
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = 80.dp), // 视觉上略高于悬浮底栏，保持居中观感
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = subtitle,
+                modifier = Modifier.padding(top = 6.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            )
+            if (onActionLabel != null && onAction != null) {
+                TextButton(
+                    onClick = onAction,
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    Text(text = onActionLabel)
+                }
+            }
+        }
     }
 }
