@@ -22,7 +22,11 @@ data class BatchResultItem(
     val packageName: String,
     val appName: String,
     val success: Boolean,
-    val message: String
+    val message: String,
+    /** 本次执行的权限（失败项重试用），旧数据为 null。 */
+    val op: AppOp? = null,
+    /** 本次执行的目标模式（失败项重试用），旧数据为 null。 */
+    val mode: OpMode? = null
 )
 
 data class BatchUiState(
@@ -126,7 +130,9 @@ class BatchViewModel @Inject constructor(
                         packageName = app.packageName,
                         appName = app.appName,
                         success = result.isSuccess,
-                        message = result.exceptionOrNull()?.message ?: "成功"
+                        message = result.exceptionOrNull()?.message ?: "成功",
+                        op = op,
+                        mode = mode
                     )
                 )
                 done++
@@ -145,6 +151,40 @@ class BatchViewModel @Inject constructor(
     fun cancelBatch() {
         executeJob?.cancel()
         _uiState.update { it.copy(isExecuting = false, error = null, message = "已取消批量操作") }
+    }
+
+    /**
+     * 单条重试：仅对失败项重新执行同一权限操作，并就地更新结果列表。
+     * 失败项缺少 op/mode（旧数据）时忽略。
+     */
+    fun retryItem(result: BatchResultItem) {
+        val op = result.op ?: return
+        val mode = result.mode ?: return
+        viewModelScope.launch {
+            ensureActive()
+            val newResult = appOpsRepository.setAppOp(result.packageName, op, mode).fold(
+                onSuccess = {
+                    BatchResultItem(result.packageName, result.appName, true, "成功", op, mode)
+                },
+                onFailure = { e ->
+                    BatchResultItem(
+                        result.packageName,
+                        result.appName,
+                        false,
+                        e.message ?: "失败",
+                        op,
+                        mode
+                    )
+                }
+            )
+            _uiState.update { state ->
+                state.copy(
+                    results = state.results.map {
+                        if (it.packageName == result.packageName && it.op?.name == op.name) newResult else it
+                    }
+                )
+            }
+        }
     }
 
     fun clearMessage() {

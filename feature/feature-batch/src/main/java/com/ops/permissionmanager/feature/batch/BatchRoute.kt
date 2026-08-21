@@ -28,6 +28,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -64,6 +66,7 @@ import com.ops.permissionmanager.core.ui.AppTypeLabel
 import com.ops.permissionmanager.core.ui.CollapsingTitle
 import com.ops.permissionmanager.core.ui.ErrorState
 import com.ops.permissionmanager.core.ui.StatusChip
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.squircle.squircleBackground
 import top.yukonga.miuix.kmp.squircle.squircleClip
 
@@ -93,6 +96,7 @@ fun BatchRoute(
             onSelectMode = viewModel::selectMode,
             onExecute = viewModel::executeBatch,
             onCancel = viewModel::cancelBatch,
+            onRetryItem = viewModel::retryItem,
             onRetry = viewModel::loadApps
         )
         SnackbarHost(
@@ -113,6 +117,7 @@ fun BatchScreen(
     onSelectMode: (OpMode) -> Unit,
     onExecute: () -> Unit,
     onCancel: () -> Unit,
+    onRetryItem: (BatchResultItem) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -121,6 +126,8 @@ fun BatchScreen(
             listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
         }
     }
+    // 执行前确认窗：点 FAB 先弹确认，防误操作
+    var showConfirm by remember { mutableStateOf(false) }
 
     when {
         uiState.isLoading -> {
@@ -225,18 +232,33 @@ fun BatchScreen(
                             )
                         }
                         items(uiState.results) { result ->
-                            ResultRow(result)
+                            ResultRow(
+                                result = result,
+                                onRetry = { onRetryItem(result) }
+                            )
                         }
                     }
                 }
 
                 BatchFab(
                     uiState = uiState,
-                    onExecute = onExecute,
+                    onExecute = { showConfirm = true },
                     onCancel = onCancel,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(end = 20.dp, bottom = 76.dp)
+                )
+            }
+
+            // 执行前确认窗（点击 FAB 弹出）
+            if (showConfirm) {
+                BatchConfirmDialog(
+                    uiState = uiState,
+                    onConfirm = {
+                        showConfirm = false
+                        onExecute()
+                    },
+                    onDismiss = { showConfirm = false }
                 )
             }
         }
@@ -359,7 +381,10 @@ private fun AppCheckRow(
 }
 
 @Composable
-private fun ResultRow(result: BatchResultItem) {
+private fun ResultRow(
+    result: BatchResultItem,
+    onRetry: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -368,13 +393,22 @@ private fun ResultRow(result: BatchResultItem) {
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = result.appName,
-            modifier = Modifier.weight(1f),
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.bodyLarge
-        )
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = result.appName,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            if (!result.success) {
+                Text(
+                    text = result.message,
+                    modifier = Modifier.padding(top = 2.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+                )
+            }
+        }
         StatusChip(
             text = if (result.success) "成功" else "失败",
             color = if (result.success) {
@@ -383,5 +417,90 @@ private fun ResultRow(result: BatchResultItem) {
                 MaterialTheme.colorScheme.error
             }
         )
+        if (!result.success && result.op != null) {
+            TextButton(onClick = onRetry) {
+                Text("重试")
+            }
+        }
+    }
+}
+
+/** 批量执行前确认窗：展示权限 → 目标模式、目标应用数与包名预览，高危权限加警示。 */
+@Composable
+private fun BatchConfirmDialog(
+    uiState: BatchUiState,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val op = uiState.selectedOp ?: return
+    val targets = uiState.apps.filter { it.packageName in uiState.selectedPackages }
+    if (targets.isEmpty()) return
+
+    OverlayDialog(
+        show = true,
+        title = "确认批量操作",
+        onDismissRequest = onDismiss
+    ) {
+        Column {
+            Text(
+                text = "将对 ${targets.size} 个应用执行：",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "${op.displayName} → ${uiState.selectedMode.displayName}",
+                modifier = Modifier.padding(top = 6.dp),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+                color = if (op.isHighRisk) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                }
+            )
+            if (op.isHighRisk) {
+                Text(
+                    text = "⚠ 该权限属于高风险操作，可能影响应用行为或隐私",
+                    modifier = Modifier.padding(top = 4.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+            Text(
+                text = targets.take(5).joinToString("、") { it.appName } +
+                    if (targets.size > 5) " 等 ${targets.size} 个应用" else "",
+                modifier = Modifier.padding(top = 10.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f),
+                    cornerRadius = 24.dp,
+                    colors = ButtonDefaults.buttonColors(
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
+                    Text("取消")
+                }
+                Button(
+                    onClick = onConfirm,
+                    modifier = Modifier.weight(1f),
+                    cornerRadius = 24.dp,
+                    colors = ButtonDefaults.buttonColors(
+                        color = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Text("确认执行")
+                }
+            }
+        }
     }
 }

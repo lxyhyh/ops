@@ -97,11 +97,21 @@ fun OpSelector(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(Modifier.weight(1f)) {
-                            Text(
-                                text = op.displayName,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = op.displayName,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                if (op.isHighRisk) {
+                                    Text(
+                                        text = "高风险",
+                                        modifier = Modifier.padding(start = 6.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
                             Text(
                                 text = op.name,
                                 style = MaterialTheme.typography.bodySmall,

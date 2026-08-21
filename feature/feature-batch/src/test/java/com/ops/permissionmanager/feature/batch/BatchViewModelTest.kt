@@ -207,6 +207,66 @@ class BatchViewModelTest {
         assertFalse(vm.uiState.value.results.any { it.success || !it.success })
     }
 
+    // ---------- 单条重试 ----------
+
+    @Test
+    fun `retryItem 失败项重试成功后更新为成功`() = runTest(dispatcher) {
+        val repo = FakeAppOpsRepository(failOn = setOf("com.b"))
+        val vm = BatchViewModel(FakeAppListRepository(listOf(appA, appB)), repo)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.selectAll()
+        vm.selectOp(testOp)
+        vm.selectMode(OpMode.DENY)
+        vm.executeBatch()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val failed = vm.uiState.value.results.first { !it.success }
+        assertEquals("com.b", failed.packageName)
+        assertTrue(failed.op != null && failed.mode != null)
+
+        // 模拟重试时通道恢复
+        repo.failOn.remove("com.b")
+        vm.retryItem(failed)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val updated = vm.uiState.value.results.first { it.packageName == "com.b" }
+        assertTrue(updated.success)
+        assertEquals("成功", updated.message)
+    }
+
+    @Test
+    fun `retryItem 重试仍失败则保持失败结果`() = runTest(dispatcher) {
+        val repo = FakeAppOpsRepository(failOn = setOf("com.b"))
+        val vm = BatchViewModel(FakeAppListRepository(listOf(appA, appB)), repo)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.selectAll()
+        vm.selectOp(testOp)
+        vm.selectMode(OpMode.DENY)
+        vm.executeBatch()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val failed = vm.uiState.value.results.first { !it.success }
+        vm.retryItem(failed)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val updated = vm.uiState.value.results.first { it.packageName == "com.b" }
+        assertFalse(updated.success)
+    }
+
+    @Test
+    fun `retryItem 缺少 op 或 mode 时忽略不执行`() = runTest(dispatcher) {
+        val repo = FakeAppOpsRepository()
+        val vm = BatchViewModel(FakeAppListRepository(listOf(appA)), repo)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.retryItem(BatchResultItem("com.a", "AppA", success = false, message = "x", op = null, mode = null))
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(repo.setCalls.isEmpty())
+    }
+
     // ---------- 假实现 ----------
 
     private fun appC() = AppInfo("com.c", "AppC", isSystemApp = false)
@@ -226,11 +286,14 @@ class BatchViewModelTest {
     }
 
     private class FakeAppOpsRepository(
-        private val failOn: Set<String> = emptySet(),
+        failOn: Set<String> = emptySet(),
         private val delayEachMs: Long = 0,
         private val throwCancellation: Boolean = false
     ) : AppOpsRepository {
         val setCalls = mutableListOf<String>()
+
+        /** 可变失败集合：重试测试中模拟通道恢复时移除包名。 */
+        val failOn = failOn.toMutableSet()
 
         override suspend fun getAppOps(packageName: String) =
             throw UnsupportedOperationException("本测试不覆盖 getAppOps")
