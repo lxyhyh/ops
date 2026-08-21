@@ -93,8 +93,9 @@ class AppDetailViewModel @Inject constructor(
             val result = appOpsRepository.setAppOp(packageName, opState.op, audit.oldMode)
             ensureActive()
             result.onSuccess {
+                // 与 setMode 一致：局部更新，不触发全量 reload
+                applyLocalUpdate(opState.op.name, audit.oldMode)
                 _uiState.update { it.copy(message = "$MSG_UNDO_SUCCESS${audit.oldMode.displayName}") }
-                load()
             }.onFailure { e ->
                 _uiState.update { it.copy(message = "$MSG_UNDO_FAILURE${e.message}") }
             }
@@ -106,11 +107,33 @@ class AppDetailViewModel @Inject constructor(
             val result = appOpsRepository.setAppOp(packageName, opState.op, mode)
             ensureActive()
             result.onSuccess {
+                // 局部更新：避免修改后全量 reload（省去 getAppOps/getAppDetail/审计重查，且无加载闪烁）
+                applyLocalUpdate(opState.op.name, mode)
                 _uiState.update { it.copy(message = "$MSG_SET_MODE_SUCCESS${mode.displayName}") }
-                load()
             }.onFailure { e ->
                 _uiState.update { it.copy(message = "$MSG_SET_MODE_FAILURE${e.message}") }
             }
+        }
+    }
+
+    /**
+     * 修改成功后就地更新权限状态与该权限的最近审计记录，
+     * 替代原先的全量 load()（省 3 次数据源查询 + 消除界面闪烁）。
+     */
+    private suspend fun applyLocalUpdate(opName: String, newMode: OpMode) {
+        val latest = auditRepository.latestFor(packageName, opName)
+        _uiState.update { state ->
+            state.copy(
+                appOps = state.appOps?.let { ops ->
+                    ops.copy(
+                        states = ops.states.map {
+                            if (it.op.name == opName) it.copy(mode = newMode) else it
+                        }
+                    )
+                },
+                recentAudits = latest?.let { state.recentAudits + (it.opName to it) }
+                    ?: state.recentAudits
+            )
         }
     }
 

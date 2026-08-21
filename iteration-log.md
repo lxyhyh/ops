@@ -17,6 +17,7 @@
 - 图标：失败缓存（`failedIcons` 集合）、进行中去重（`loadingIcons`）、LruCache 改 count-based 256 项（约 16MB 上限，避免缓存抖动）
 - `ProcessRunner.MAX_READ_BYTES` 256KB → 4MB（历史完整性）
 - `getHistory()` 内存缓存 TTL 60s（避免重复 dumpsys）
+- 详情页修改权限/撤销后**局部更新**（`applyLocalUpdate` 就地改状态+刷新该权限审计，替代全量 load——省 3 次数据源查询且消除加载闪烁）
 
 **验证**：全量 `testDebugUnitTest` 全绿（含新增缓存回归测试 `getHistory TTL 内二次调用走缓存`）✅ + `:app:assembleRelease` ✅ + apksigner v2 ✅
 
