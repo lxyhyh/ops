@@ -82,9 +82,13 @@ app                  # 应用入口
 - **ProcessRunner**：统一执行外部进程，含超时强杀与 stdout/stderr 汇总
 
 ## 相关文档
-
 - [DESIGN.md](DESIGN.md) — 技术设计文档
+- [CHANGELOG.md](CHANGELOG.md) — 更新日志
+- [PRIVACY.md](PRIVACY.md) — 隐私说明
+- [docs/BENCHMARKS.md](docs/BENCHMARKS.md) — 性能门禁与基线
+- [docs/REUSE-DECISIONS.md](docs/REUSE-DECISIONS.md) — 复用决策记录
 
 ## 许可证
+本项目采用 [Apache License 2.0](LICENSE)。
 
 本项目仅供学习与技术研究使用。

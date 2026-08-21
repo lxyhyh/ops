@@ -67,7 +67,23 @@ jobs:
 
       - name: 编译正式版 APK
         run: ./gradlew :app:assembleRelease
-
+      - name: 标记签名状态（无 Secrets 时产物为 debug 签名，避免误用）
+        run: |
+          if [ -f app/keystore.properties ]; then
+            echo "SIGN_SUFFIX=release" >> "$GITHUB_ENV"
+          else
+            echo "SIGN_SUFFIX=debug-signed" >> "$GITHUB_ENV"
+            echo "WARNING: 未配置 Secrets，release 变体使用 debug 签名（仅限 CI 验证，不可分发）"
+          fi
+      - name: 生成依赖锁定（供漏洞扫描）
+        continue-on-error: true
+        run: ./gradlew :app:dependencies --write-locks -q || true
+      - name: OSV 依赖漏洞扫描（报告不阻断）
+        continue-on-error: true
+        uses: google/osv-scanner-action@v1.0.4
+        with:
+          scan-args: |
+            -r .
       - name: 上传测试报告
         uses: actions/upload-artifact@v4
         if: always()
@@ -77,9 +93,8 @@ jobs:
             app/build/test-results/testDebugUnitTest
             core/core-model/build/test-results/testDebugUnitTest
             data/data-appops/build/test-results/testDebugUnitTest
-
       - name: 上传 APK 安装包
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-apk
+          name: app-release-apk-${{ env.SIGN_SUFFIX }}
           path: app/build/outputs/apk/release/*.apk
