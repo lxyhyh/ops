@@ -271,15 +271,16 @@ private fun AppOpRow(
                     )
                 }
             }
-            // 最近一次修改（审计）：显示旧值 → 新值，当前值等于修改后值时提供撤销
+            // 最近一次修改（审计）：显示旧值 → 新值；当前值等于修改后值且旧值已知时提供撤销
             if (recentAudit != null) {
+                val oldLabel = if (recentAudit.oldModeUnknown) "未知" else recentAudit.oldMode.displayName
                 Text(
-                    text = "最近修改：${recentAudit.oldMode.displayName} → ${recentAudit.newMode.displayName} · ${formatAuditTime(recentAudit.timestampMillis)}",
+                    text = "最近修改：$oldLabel → ${recentAudit.newMode.displayName} · ${formatAuditTime(recentAudit.timestampMillis)}",
                     modifier = Modifier.padding(top = 2.dp),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                 )
-                if (recentAudit.newMode == opState.mode) {
+                if (!recentAudit.oldModeUnknown && recentAudit.newMode == opState.mode) {
                     TextButton(
                         onClick = onUndo,
                         modifier = Modifier.padding(top = 2.dp)

@@ -70,7 +70,9 @@ class RealAppOpsRepositoryTest {
 
     @Test
     fun `setAppOp 组装命令并返回成功`() = runTest {
-        val executor = RecordingExecutor(ShellResult("", "", 0))
+        // 单查返回含 TEST_OP 的输出（旧值 allow），不触发回退全量查询
+        val raw = "Uid mode: default\n  TEST_OP: allow\n"
+        val executor = RecordingExecutor(ShellResult(raw, "", 0))
         val repo = RealAppOpsRepository(executor, parser, FakeAuditRepository(), FakeModifyModeRepository(ModifyMode.AUTO))
 
         val result = repo.setAppOp("com.example.app", testOp(), OpMode.DENY)
@@ -162,11 +164,13 @@ class RealAppOpsRepositoryTest {
     }
 
     @Test
-    fun `setAppOp 旧值查询失败不阻断修改且不写审计`() = runTest {
-        // get 返回失败（exitCode=1），set 成功 → 不写审计、不崩溃
+    fun `setAppOp 旧值查询失败回退全量查询并写入审计`() = runTest {
+        // 单查 get 失败（exitCode=1），回退全量 getAppOps 成功（旧值 allow），set 成功
+        val fullRaw = "Uid mode: default\n  TEST_OP: allow\n"
         val executor = SequenceExecutor(
             listOf(
-                ShellResult("", "permission denied", 1), // get 失败
+                ShellResult("", "permission denied", 1), // 单查失败
+                ShellResult(fullRaw, "", 0), // 全量查询成功
                 ShellResult("", "", 0) // set 成功
             )
         )
@@ -178,7 +182,33 @@ class RealAppOpsRepositoryTest {
         val result = repo.setAppOp("com.example.app", testOp(), OpMode.DENY)
 
         assertTrue(result.isSuccess)
-        assertTrue(audit.records.isEmpty())
+        assertEquals(1, audit.records.size)
+        assertEquals(OpMode.ALLOW, audit.records[0].oldMode)
+        assertEquals(false, audit.records[0].oldModeUnknown)
+        assertEquals(OpMode.DENY, audit.records[0].newMode)
+    }
+
+    @Test
+    fun `setAppOp 单查与回退全量均失败时写入审计且标记旧值未知`() = runTest {
+        // 单查失败 + 全量查询失败，set 成功 → 审计 oldModeUnknown=true，不阻断修改
+        val executor = SequenceExecutor(
+            listOf(
+                ShellResult("", "permission denied", 1), // 单查失败
+                ShellResult("", "denied", 1), // 全量查询失败
+                ShellResult("", "", 0) // set 成功
+            )
+        )
+        val audit = FakeAuditRepository()
+        val repo = RealAppOpsRepository(
+            executor, parser, audit, FakeModifyModeRepository(ModifyMode.AUTO)
+        )
+
+        val result = repo.setAppOp("com.example.app", testOp(), OpMode.DENY)
+
+        assertTrue(result.isSuccess)
+        assertEquals(1, audit.records.size)
+        assertTrue("旧值未知应标记", audit.records[0].oldModeUnknown)
+        assertEquals(OpMode.DENY, audit.records[0].newMode)
     }
 
     @Test

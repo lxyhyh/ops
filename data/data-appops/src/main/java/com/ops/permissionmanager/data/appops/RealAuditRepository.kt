@@ -1,6 +1,7 @@
 package com.ops.permissionmanager.data.appops
 
 import android.content.Context
+import android.util.Log
 import com.ops.permissionmanager.core.model.AuditRecord
 import com.ops.permissionmanager.core.model.ModifyMode
 import com.ops.permissionmanager.core.model.OpMode
@@ -70,7 +71,8 @@ class RealAuditRepository @Inject constructor(
                                 opDisplayName = o.optString("d"),
                                 oldMode = oldMode,
                                 newMode = newMode,
-                                channel = channel
+                                channel = channel,
+                                oldModeUnknown = o.optBoolean("ou", false)
                             )
                         )
                     }
@@ -91,9 +93,11 @@ class RealAuditRepository @Inject constructor(
                     .put("old", r.oldMode.commandValue)
                     .put("new", r.newMode.commandValue)
                     .put("ch", r.channel.name)
+                    .put("ou", r.oldModeUnknown)
             )
         }
         runCatching { auditFile().writeText(arr.toString()) }
+            .onFailure { e -> Log.e(TAG, "审计记录落盘失败（进程内记录保留，下次保存重试）", e) }
     }
 
     override suspend fun recordChange(record: AuditRecord) {
@@ -141,6 +145,8 @@ class RealAuditRepository @Inject constructor(
     }
 
     private companion object {
+        private const val TAG = "RealAuditRepository"
+
         const val MAX_RECORDS = 500
 
         /** 落盘合并窗口：此窗口内的连续修改只写一次文件。 */

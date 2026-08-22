@@ -37,24 +37,26 @@ class RealAppOpsRepository @Inject constructor(
     override suspend fun setAppOp(packageName: String, op: AppOp, mode: OpMode): Result<Unit> {
         val safe = validatePackageName(packageName)
         return try {
-            // 审计：修改前先查当前模式作为旧值（查询失败不阻断修改，旧值记 null 语义）
-            val oldMode = queryCurrentMode(safe, op.name)
+            // 审计：修改前先查当前模式作为旧值。查询失败不阻断修改：
+            // 回退全量查询再试一次，仍失败则写入审计并标记 oldModeUnknown（界面不提供撤销）。
+            val (oldMode, oldModeUnknown) = queryCurrentMode(safe, op.name)
             val result = commandExecutor.execute(
                 "cmd appops set $safe ${op.name} ${mode.commandValue}"
             )
             if (result.exitCode != 0) {
                 throw AppOpsError.CommandFailed(result.exitCode, result.stderr)
             }
-            if (oldMode != null && oldMode != mode) {
+            if (oldMode == null || oldMode != mode) {
                 auditRepository.recordChange(
                     AuditRecord(
                         timestampMillis = System.currentTimeMillis(),
                         packageName = safe,
                         opName = op.name,
                         opDisplayName = op.displayName,
-                        oldMode = oldMode,
+                        oldMode = oldMode ?: mode,
                         newMode = mode,
-                        channel = modifyModeRepository.modifyMode.value
+                        channel = modifyModeRepository.modifyMode.value,
+                        oldModeUnknown = oldModeUnknown
                     )
                 )
             }
@@ -68,14 +70,25 @@ class RealAppOpsRepository @Inject constructor(
 
     /**
      * 查询单个权限当前模式（供审计旧值），失败或未找到返回 null。
-     * 使用 `cmd appops get <pkg> <op>` 轻量单查，避免全量输出。
+     * 使用 `cmd appops get <pkg> <op>` 轻量单查，失败时回退全量 `getAppOps`，
+     * 仍失败返回 (null, true) 表示旧值未知。
      */
-    private suspend fun queryCurrentMode(packageName: String, opName: String): OpMode? {
-        val result = commandExecutor.execute("cmd appops get $packageName $opName")
-        if (result.exitCode != 0) return null
-        return withContext(Dispatchers.Default) {
-            appOpsParser.parseGetOutput(result.stdout).firstOrNull()?.mode
+    private suspend fun queryCurrentMode(packageName: String, opName: String): Pair<OpMode?, Boolean> {
+        val single = commandExecutor.execute("cmd appops get $packageName $opName")
+        if (single.exitCode == 0) {
+            val mode = withContext(Dispatchers.Default) {
+                appOpsParser.parseGetOutput(single.stdout).firstOrNull()?.mode
+            }
+            if (mode != null) return mode to false
         }
+        // 回退：全量查询（单查失败可能是命令形态不被支持，如部分 ROM 的 appops 实现）
+        return runCatching { getAppOps(packageName) }
+            .getOrNull()
+            ?.states
+            ?.firstOrNull { it.op.name == opName }
+            ?.mode
+            ?.let { it to false }
+            ?: (null to true)
     }
 
     /** 历史记录内存缓存（TTL 内不重复执行慢速 dumpsys）。 */

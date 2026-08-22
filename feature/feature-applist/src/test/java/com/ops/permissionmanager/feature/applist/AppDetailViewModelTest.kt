@@ -212,6 +212,31 @@ class AppDetailViewModelTest {
         assertTrue(repo.setOps.isEmpty())
     }
 
+    @Test
+    fun `undo 旧值未知时忽略不执行`() = runTest(dispatcher) {
+        val audit = FakeAuditRepository()
+        audit.records.add(
+            AuditRecord(
+                timestampMillis = 1000,
+                packageName = packageName,
+                opName = op.name,
+                opDisplayName = op.displayName,
+                oldMode = OpMode.DENY,
+                newMode = OpMode.ALLOW,
+                channel = ModifyMode.AUTO,
+                oldModeUnknown = true
+            )
+        )
+        val repo = FakeAppOpsRepository(appOpsState(OpMode.ALLOW))
+        val vm = AppDetailViewModel(repo, FakeAppListRepository(null), audit, savedState())
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.undo(opState)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue("旧值未知不应触发撤销", repo.setOps.isEmpty())
+    }
+
 @Test
     fun `setMode 成功后局部更新不触发全量重查`() = runTest(dispatcher) {
         val repo = FakeAppOpsRepository(appOpsState())

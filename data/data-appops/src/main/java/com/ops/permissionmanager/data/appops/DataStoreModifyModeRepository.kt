@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,6 +21,8 @@ import javax.inject.Singleton
  * 基于 DataStore（替代 SharedPreferences）的修改模式仓库。
  *
  * 持久化用户选择的 [ModifyMode]，并以 StateFlow 暴露供界面观察。
+ * 启动竞态防护：构造时同步读取持久化值（DataStore 首次读取为磁盘 IO，
+ * 通常在毫秒级），避免 Router 在读取完成前按默认 AUTO 路由。
  */
 @Singleton
 class DataStoreModifyModeRepository @Inject constructor(
@@ -34,14 +37,11 @@ class DataStoreModifyModeRepository @Inject constructor(
     private val dataStore = context.opsDataStore
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val _modifyMode = MutableStateFlow(ModifyMode.AUTO)
-
-    init {
-        scope.launch {
-            val stored = dataStore.data.first()[KEY_MODIFY_MODE]
-            _modifyMode.value = ModifyMode.fromName(stored)
+    private val _modifyMode = MutableStateFlow(
+        runBlocking(Dispatchers.IO) {
+            ModifyMode.fromName(dataStore.data.first()[KEY_MODIFY_MODE])
         }
-    }
+    )
 
     override val modifyMode: StateFlow<ModifyMode> = _modifyMode.asStateFlow()
 

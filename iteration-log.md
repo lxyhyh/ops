@@ -2,6 +2,21 @@
 
 按 operit-vibe-coding 技能记录每轮增量：目标 → 验证 → 结果。
 
+## 2026-08-22：代码审查问题修复（发布阻断项 + 可靠性）
+
+**背景**：全量代码审查发现 1 个 Blocker（release 包 Shizuku 通道静默失效）与 4 个可靠性问题，本轮按「Bug修复」技能最小充分修复。
+
+**修复项**：
+1. **Blocker：R8 混淆破坏 Shizuku 反射**——`ShizukuCommandExecutor` 用 `Class.forName("rikka.shizuku.Shizuku")` 反射调用非公开 `newProcess`，而 shizuku-api 13.1.5 的 proguard.txt 为空（无 consumer 规则），release 构建下类被改名为 `lp1`/`qp1`，反射初始化必然失败。修复：`app/proguard-rules.pro` 增加 `-keep class rikka.shizuku.Shizuku/ShizukuRemoteProcess` + `-keepclassmembers ... newProcess(...)`。验证：构建后 mapping 显示类名不再混淆；apkanalyzer 反编译确认字节码为 `const-class Lrikka/shizuku/Shizuku; → getDeclaredMethod("newProcess") → Method.invoke` 完整链路（R8 将 `Class.forName` 优化为 `const-class` 直接引用，故 dex 字符串池中无点分类名字符串，属正常）。
+2. **批量取消响应延迟**：`ProcessRunner` 阻塞式 `waitFor` 不响应协程取消（最多延迟 30s+10s）。修复：`runInterruptible` 包装 waitFor，取消时立即 `destroyForcibly` 并抛 `CancellationException`。
+3. **审计静默丢失**：旧值查询失败时整条修改不记审计（详情页无法撤销）。修复：单查失败回退全量查询；仍失败则照常写审计并标记 `oldModeUnknown=true`（UI 显示「未知」且不提供撤销，避免误导）；`RealAuditRepository.save` 失败改记 Log.e（不再静默吞）。
+4. **撤销 TOCTOU 竞态**：`undo` 原来在协程外读审计快照并校验。修复：协程内重新 `latestFor` + 校验当前模式，旧值未知/已等于当前值均忽略。
+5. **DataStore 启动竞态**：主题/修改模式默认值异步覆盖。修复：两个仓库构造时 `runBlocking(Dispatchers.IO)` 同步读取持久化值。
+
+**验证**：75/75 单测全绿（新增 3 例：单查失败回退全量写审计、双失败标记旧值未知、旧值未知不撤销）✅ + `:app:assembleRelease` ✅ + apkanalyzer 字节码确认反射链路 ✅ + apksigner v2 ✅
+
+**产物**：`/sdcard/Download/OpsPermissionManager-MIUIX.apk`（4.19MB，v0.2.0）
+
 ## 2026-08-22：性能优化专项（运行提速 + 资源消耗降低）
 
 **目标**：识别并消除热点——启动/页面加载提速、减少 CPU/IO/内存浪费。

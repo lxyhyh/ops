@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 @Singleton
 class SettingsRepository @Inject constructor(
@@ -24,18 +25,16 @@ class SettingsRepository @Inject constructor(
     private val dataStore = context.opsDataStore
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val _themeMode: MutableStateFlow<ThemeMode> = MutableStateFlow(ThemeMode.SYSTEM)
-
-    val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
-
-    init {
-        scope.launch {
-            val stored = dataStore.data.first()[SettingsPrefKeys.KEY_THEME_MODE]
-            _themeMode.value = stored
+    /** 启动竞态防护：构造时同步读取持久化主题，避免首帧闪回默认 SYSTEM。 */
+    private val _themeMode: MutableStateFlow<ThemeMode> = MutableStateFlow(
+        runBlocking(Dispatchers.IO) {
+            dataStore.data.first()[SettingsPrefKeys.KEY_THEME_MODE]
                 ?.let { name -> ThemeMode.entries.firstOrNull { it.name == name } }
                 ?: ThemeMode.SYSTEM
         }
-    }
+    )
+
+    val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
 
     fun setThemeMode(mode: ThemeMode) {
         _themeMode.value = mode

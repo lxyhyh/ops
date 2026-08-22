@@ -84,12 +84,21 @@ class AppDetailViewModel @Inject constructor(
 
     /**
      * 撤销最近一次修改：将权限恢复为审计记录中的旧值。
-     * 无审计记录或旧值已等于当前值时忽略。
+     * 无审计记录、旧值未知或旧值已等于当前值时忽略。
+     *
+     * 竞态防护：审计记录在协程内重新读取并校验（避免 UI 线程快照与
+     * 执行时刻之间状态变化导致撤销到过期旧值）。
      */
     fun undo(opState: AppOpState) {
-        val audit = _uiState.value.recentAudits[opState.op.name] ?: return
-        if (audit.oldMode == opState.mode) return
         viewModelScope.launch {
+            val audit = auditRepository.latestFor(packageName, opState.op.name) ?: return@launch
+            if (audit.oldModeUnknown) return@launch
+            val currentMode = _uiState.value.appOps
+                ?.states
+                ?.firstOrNull { it.op.name == opState.op.name }
+                ?.mode
+            if (currentMode == null || audit.oldMode == currentMode) return@launch
+
             val result = appOpsRepository.setAppOp(packageName, opState.op, audit.oldMode)
             ensureActive()
             result.onSuccess {
