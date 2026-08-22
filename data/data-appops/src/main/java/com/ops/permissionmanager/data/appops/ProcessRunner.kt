@@ -33,11 +33,14 @@ internal suspend fun executeProcess(process: Process): ShellResult = withContext
                 } else {
                     process.exitValue()
                 }
-            } catch (e: InterruptedException) {
-                // 协程取消触发的中断：立即清理进程并重新抛出取消异常
+            } catch (e: CancellationException) {
+                // 协程取消：runInterruptible 已中断 waitFor 并转为 CancellationException
+                // （源码见 kotlinx.coroutines.InterruptibleKt，不会直接抛 InterruptedException）。
+                // 强制销毁进程，避免仅靠 finally 的温和 destroy() 让挂起进程的
+                // stdout/stderr reader 协程迟迟不结束（coroutineScope 会等待全部子协程）。
                 process.destroyForcibly()
                 process.waitFor(DESTROY_WAIT_SECONDS, TimeUnit.SECONDS)
-                throw CancellationException("进程等待被取消", e)
+                throw e
             }
 
             val stdout = stdoutDeferred.await()

@@ -8,7 +8,7 @@
 
 **修复项**：
 1. **Blocker：R8 混淆破坏 Shizuku 反射**——`ShizukuCommandExecutor` 用 `Class.forName("rikka.shizuku.Shizuku")` 反射调用非公开 `newProcess`，而 shizuku-api 13.1.5 的 proguard.txt 为空（无 consumer 规则），release 构建下类被改名为 `lp1`/`qp1`，反射初始化必然失败。修复：`app/proguard-rules.pro` 增加 `-keep class rikka.shizuku.Shizuku/ShizukuRemoteProcess` + `-keepclassmembers ... newProcess(...)`。验证：构建后 mapping 显示类名不再混淆；apkanalyzer 反编译确认字节码为 `const-class Lrikka/shizuku/Shizuku; → getDeclaredMethod("newProcess") → Method.invoke` 完整链路（R8 将 `Class.forName` 优化为 `const-class` 直接引用，故 dex 字符串池中无点分类名字符串，属正常）。
-2. **批量取消响应延迟**：`ProcessRunner` 阻塞式 `waitFor` 不响应协程取消（最多延迟 30s+10s）。修复：`runInterruptible` 包装 waitFor，取消时立即 `destroyForcibly` 并抛 `CancellationException`。
+2. **批量取消响应延迟**：`ProcessRunner` 阻塞式 `waitFor` 不响应协程取消（最多延迟 30s+10s）。修复：`runInterruptible` 包装 waitFor，协程取消时立即中断等待；复核发现 `runInterruptible` 抛的是 `CancellationException`（非 `InterruptedException`），修正 catch 分支为捕获取消异常后 `destroyForcibly` 强制清理进程再重抛。
 3. **审计静默丢失**：旧值查询失败时整条修改不记审计（详情页无法撤销）。修复：单查失败回退全量查询；仍失败则照常写审计并标记 `oldModeUnknown=true`（UI 显示「未知」且不提供撤销，避免误导）；`RealAuditRepository.save` 失败改记 Log.e（不再静默吞）。
 4. **撤销 TOCTOU 竞态**：`undo` 原来在协程外读审计快照并校验。修复：协程内重新 `latestFor` + 校验当前模式，旧值未知/已等于当前值均忽略。
 5. **DataStore 启动竞态**：主题/修改模式默认值异步覆盖。修复：两个仓库构造时 `runBlocking(Dispatchers.IO)` 同步读取持久化值。
