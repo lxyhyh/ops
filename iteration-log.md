@@ -2,6 +2,25 @@
 
 按 operit-vibe-coding 技能记录每轮增量：目标 → 验证 → 结果。
 
+## 2026-08-23：全量改进优化（模块化/并发/可测性/去重专项）
+
+**背景**：上一轮审查修复闭环后，用户要求按「架构改进/模块化分析/代码审查/代码设计/性能与资源优化/复用优先」技能再做一轮改进优化。诊断报告识别 4 项低风险快速改进 + 3 项结构性重构，用户选定「全部改进优化」。
+
+**实施**：
+1. **新增 `core:core-common` 模块 + `TtlCache<T>`**：统一 3 处重复的「volatile+时间戳+TTL」缓存策略（`CommandExecutorRouter` 可用性 5s / `RealAppOpsRepository` 历史 60s / `RealAppListRepository` 应用列表 30s）。语义：无锁快速路径 + 锁内双检刷新（并发只刷新一次）、refresh 异常不写缓存、`peek()` 供秒开路径。时钟可注入，新增 9 例行为测试。
+2. **RootCheckViewModel 并发重入修复**：`checkAvailability()` 增加 Job 跟踪，重入时 cancel 旧探测（快速点「重试」不再并发探测、不再结果乱序覆盖）。新增 5 例测试。
+3. **RealAuditRepository 缓存命中免 IO 切换**：`load()` 缓存命中直接返回，不再每次切 IO 线程。
+4. **ProcessRunner 读流异常打 Log.w**：保留空串降级语义，不再静默吞异常。
+5. **loadApps 两段式加载去重**：新增 `AppListRepository.loadCachedThenFresh` 数据层扩展，AppList/Batch 两个 ViewModel 共用同一顺序约束。
+6. **feature-settings 测试补齐（seam 化）**：`SettingsRepository` 抽接口 + `DataStoreSettingsRepository`；`ShizukuManager` 抽接口 + `RealShizukuManager`；新增 `VersionNameProvider`/`ShizukuInstallDetector` seam + `SettingsModule` Hilt 绑定。SettingsViewModel/RootCheckViewModel 不再直接依赖 Android Context，新增 13 例测试，消除模块测试空白。
+
+**验证**：97/97 单测全绿（原 75 + 新增 22）✅ + 全模块 compileDebugKotlin ✅
+
+**复用结论**：TtlCache 经四层检查（kotlinx 无 TTL 缓存 / LruCache 非 TTL / guava 引入成本 > 收益）→ 自造合理，记录于 docs/REUSE-DECISIONS.md D6。
+
+**已评估并有意保留**：
+- R1 root 会话复用（libsu）：JitPack 已可达（2026-08-23 实测 HTTP 200），但 libsu 守护进程无法命令级中断，会削弱上一轮修复的「批量取消立即生效」语义（协程取消仅 destroyForcibly 当前进程，会话内后续命令无法取消），且行为等价性需真机验证。建议维持 ProcessRunner 现状，如需会话复用须单独迭代评估（见 docs/REUSE-DECISIONS.md D4）。
+
 ## 2026-08-22：代码审查问题修复（发布阻断项 + 可靠性）
 
 **背景**：全量代码审查发现 1 个 Blocker（release 包 Shizuku 通道静默失效）与 4 个可靠性问题，本轮按「Bug修复」技能最小充分修复。

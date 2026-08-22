@@ -1,10 +1,9 @@
 package com.ops.permissionmanager.data.appops
 
+import com.ops.permissionmanager.core.common.TtlCache
 import com.ops.permissionmanager.core.model.ModifyMode
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
@@ -14,7 +13,7 @@ import javax.inject.Singleton
  *
  * 与原版反编译逐项对齐：
  * - 构造仅注入 root/shizuku 两个执行器与模式仓库（不持有 ShizukuManager）；
- * - root/shizuku 可用性各带一个 5s TTL 的 AvailabilityCache；
+ * - root/shizuku 可用性各带一个 5s TTL 的缓存（[TtlCache]，double-checked locking）；
  * - isAvailable 直接透传所选执行器结果（无 runCatching 包裹）；
  * - AUTO 兜底：两者均不可用时回退 RootExecutor（不抛异常）。
  */
@@ -25,8 +24,8 @@ class CommandExecutorRouter @Inject constructor(
     private val modifyModeRepository: ModifyModeRepository
 ) : CommandExecutor, ExecutionAvailability {
 
-    private val rootAvailable = AvailabilityCache()
-    private val shizukuAvailable = AvailabilityCache()
+    private val rootAvailable = TtlCache<Boolean>(AVAILABILITY_TTL_MS)
+    private val shizukuAvailable = TtlCache<Boolean>(AVAILABILITY_TTL_MS)
 
     override suspend fun execute(command: String): ShellResult =
         resolveExecutor().execute(command)
@@ -59,44 +58,13 @@ class CommandExecutorRouter @Inject constructor(
         }
 
     private suspend fun cachedRootAvailable(): Boolean =
-        rootAvailable.get { rootExecutor.isAvailable() }
+        rootAvailable.getOrRefresh { rootExecutor.isAvailable() }
 
     private suspend fun cachedShizukuAvailable(): Boolean =
-        shizukuAvailable.get { shizukuExecutor.isAvailable() }
+        shizukuAvailable.getOrRefresh { shizukuExecutor.isAvailable() }
 
-    /** 可用性缓存：无锁快速路径 + 锁内二次检查（double-checked locking，与原版一致）。 */
-    private class AvailabilityCache {
-
-        companion object {
-            const val TTL_MS = 5000L
-        }
-
-        private val mutex = Mutex()
-
-        @Volatile
-        private var cached: Boolean? = null
-
-        @Volatile
-        private var cachedAt: Long = 0
-
-        suspend fun get(probe: suspend () -> Boolean): Boolean {
-            // 无锁快速路径（与原版一致）
-            val now = System.currentTimeMillis()
-            val current = cached
-            if (current != null && now - cachedAt < TTL_MS) return current
-
-            return mutex.withLock {
-                val now2 = System.currentTimeMillis()
-                val current2 = cached
-                if (current2 != null && now2 - cachedAt < TTL_MS) {
-                    current2
-                } else {
-                    val fresh = probe()
-                    cached = fresh
-                    cachedAt = now2
-                    fresh
-                }
-            }
-        }
+    private companion object {
+        /** 可用性缓存有效期：5s 内不重复探测（su 探测/Shizuku 检查有进程开销）。 */
+        const val AVAILABILITY_TTL_MS = 5000L
     }
 }

@@ -1,5 +1,6 @@
 package com.ops.permissionmanager.data.appops
 
+import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -15,6 +16,7 @@ import java.util.concurrent.TimeUnit
 private const val MAX_READ_BYTES = 4 * 1024 * 1024
 private const val MAX_WAIT_SECONDS = 30L
 private const val DESTROY_WAIT_SECONDS = 10L
+private const val TAG = "ProcessRunner"
 
 internal suspend fun executeProcess(process: Process): ShellResult = withContext(Dispatchers.IO) {
     try {
@@ -57,7 +59,10 @@ private fun readStream(stream: InputStream): String {
     val reader = BufferedReader(InputStreamReader(LimitedInputStream(stream, MAX_READ_BYTES)))
     return try {
         reader.readText()
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        // 流读取失败：返回空串保持降级语义（命令仍以 exitCode 判定结果），
+        // 但打日志便于排查静默失败（此前完全静默）。
+        Log.w(TAG, "读取命令输出流失败（返回空串）", e)
         ""
     } finally {
         try {

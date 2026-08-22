@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ops.permissionmanager.core.model.AppInfo
 import com.ops.permissionmanager.data.applist.AppListRepository
+import com.ops.permissionmanager.data.applist.loadCachedThenFresh
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -39,25 +40,27 @@ class AppListViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             try {
-                // 第一步：先读磁盘缓存，有则立即展示，避免 PackageManager 遍历的等待
-                appListRepository.getCachedInstalledApps()?.let { cached ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            apps = cached,
-                            filteredApps = filterApps(cached, it.query, it.filter)
-                        )
+                // 双阶段加载（磁盘缓存秒开 → 后台刷新最新），顺序约束封装在 data 层
+                appListRepository.loadCachedThenFresh(
+                    onCached = { cached ->
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                apps = cached,
+                                filteredApps = filterApps(cached, it.query, it.filter)
+                            )
+                        }
+                    },
+                    onFresh = { apps ->
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                apps = apps,
+                                filteredApps = filterApps(apps, it.query, it.filter)
+                            )
+                        }
                     }
-                }
-                // 第二步：后台构建最新列表（内存/磁盘缓存也在此写入），对比后更新
-                val apps = appListRepository.getInstalledApps()
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        apps = apps,
-                        filteredApps = filterApps(apps, it.query, it.filter)
-                    )
-                }
+                )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

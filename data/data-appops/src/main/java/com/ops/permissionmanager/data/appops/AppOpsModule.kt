@@ -32,6 +32,10 @@ abstract class AppOpsModule {
     @Singleton
     abstract fun bindExecutionAvailability(impl: CommandExecutorRouter): ExecutionAvailability
 
+    @Binds
+    @Singleton
+    abstract fun bindShizukuManager(impl: RealShizukuManager): ShizukuManager
+
     @Module
     @InstallIn(SingletonComponent::class)
     object CommandExecutorsModule {

@@ -49,36 +49,44 @@ class RealAuditRepository @Inject constructor(
         return File(dir, "audit.json")
     }
 
-    private suspend fun load(): List<AuditRecord> = withContext(Dispatchers.IO) {
-        records ?: runCatching {
-            val file = auditFile()
-            if (!file.exists()) return@runCatching emptyList()
-            val arr = JSONArray(file.readText())
-            buildList {
-                for (i in 0 until arr.length()) {
-                    val o = arr.getJSONObject(i)
-                    val oldMode = OpMode.fromCommandValue(o.optString("old"))
-                    val newMode = OpMode.fromCommandValue(o.optString("new"))
-                    val channel = runCatching {
-                        ModifyMode.valueOf(o.optString("ch"))
-                    }.getOrDefault(ModifyMode.AUTO)
-                    if (oldMode != null && newMode != null) {
-                        add(
-                            AuditRecord(
-                                timestampMillis = o.optLong("t"),
-                                packageName = o.optString("p"),
-                                opName = o.optString("op"),
-                                opDisplayName = o.optString("d"),
-                                oldMode = oldMode,
-                                newMode = newMode,
-                                channel = channel,
-                                oldModeUnknown = o.optBoolean("ou", false)
+    /**
+     * 读取审计记录（进程内缓存优先）。
+     * 缓存命中（首次读后）不切换到 IO 线程，避免每次 recordChange/latestFor/all
+     * 都产生一次线程调度开销。
+     */
+    private suspend fun load(): List<AuditRecord> {
+        records?.let { return it }
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                val file = auditFile()
+                if (!file.exists()) return@runCatching emptyList()
+                val arr = JSONArray(file.readText())
+                buildList {
+                    for (i in 0 until arr.length()) {
+                        val o = arr.getJSONObject(i)
+                        val oldMode = OpMode.fromCommandValue(o.optString("old"))
+                        val newMode = OpMode.fromCommandValue(o.optString("new"))
+                        val channel = runCatching {
+                            ModifyMode.valueOf(o.optString("ch"))
+                        }.getOrDefault(ModifyMode.AUTO)
+                        if (oldMode != null && newMode != null) {
+                            add(
+                                AuditRecord(
+                                    timestampMillis = o.optLong("t"),
+                                    packageName = o.optString("p"),
+                                    opName = o.optString("op"),
+                                    opDisplayName = o.optString("d"),
+                                    oldMode = oldMode,
+                                    newMode = newMode,
+                                    channel = channel,
+                                    oldModeUnknown = o.optBoolean("ou", false)
+                                )
                             )
-                        )
+                        }
                     }
                 }
-            }
-        }.getOrDefault(emptyList()).also { records = it }
+            }.getOrDefault(emptyList()).also { records = it }
+        }
     }
 
     private suspend fun save(list: List<AuditRecord>) = withContext(Dispatchers.IO) {

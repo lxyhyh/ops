@@ -3,6 +3,7 @@ package com.ops.permissionmanager.data.applist
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import com.ops.permissionmanager.core.common.TtlCache
 import com.ops.permissionmanager.core.model.AppDetailInfo
 import com.ops.permissionmanager.core.model.AppInfo
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -20,34 +21,24 @@ class RealAppListRepository @Inject constructor(
 ) : AppListRepository {
 
     /** 进程内应用列表缓存：应用列表 + 批量页会各自加载，共享一份避免重复 IO/内存双份。 */
-    @Volatile
-    private var cached: List<AppInfo>? = null
-
-    @Volatile
-    private var cachedAt: Long = 0
+    private val appCache = TtlCache<List<AppInfo>>(CACHE_TTL_MS)
 
     override suspend fun getInstalledApps(): List<AppInfo> = withContext(Dispatchers.IO) {
-        val now = System.currentTimeMillis()
-        cached?.let { list ->
-            if (now - cachedAt < CACHE_TTL_MS) {
-                return@withContext list
-            }
+        appCache.getOrRefresh {
+            val pm = context.packageManager
+            // 与原版一致：不过滤自身包名，全部已安装应用都展示。
+            val apps = pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(0))
+                .map { appInfo ->
+                    AppInfo(
+                        packageName = appInfo.packageName,
+                        appName = pm.getApplicationLabel(appInfo)?.toString() ?: appInfo.packageName,
+                        isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+                    )
+                }
+                .sortedBy { it.appName.lowercase() }
+            writeCacheFile(apps)
+            apps
         }
-        val pm = context.packageManager
-        // 与原版一致：不过滤自身包名，全部已安装应用都展示。
-        val apps = pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(0))
-            .map { appInfo ->
-                AppInfo(
-                    packageName = appInfo.packageName,
-                    appName = pm.getApplicationLabel(appInfo)?.toString() ?: appInfo.packageName,
-                    isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
-                )
-            }
-            .sortedBy { it.appName.lowercase() }
-        cached = apps
-        cachedAt = now
-        writeCacheFile(apps)
-        apps
     }
 
     /**
@@ -55,8 +46,8 @@ class RealAppListRepository @Inject constructor(
      * 磁盘缓存能避免每次冷启动都重新遍历 PackageManager（该操作在部分设备上可达数百毫秒）。
      */
     override suspend fun getCachedInstalledApps(): List<AppInfo>? = withContext(Dispatchers.IO) {
-        cached?.let { return@withContext it }
-        readCacheFile()
+        // 优先内存缓存（peek 不校验 TTL：过期数据先展示，随后由 getInstalledApps 刷新）
+        appCache.peek() ?: readCacheFile()
     }
 
     /**

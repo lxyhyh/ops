@@ -22,6 +22,7 @@ dependencyResolutionManagement {
 rootProject.name = "OpsPermissionManager"
 include(":app")
 include(":core:core-model")
+include(":core:core-common")
 include(":core:core-ui")
 include(":data:data-appops")
 include(":data:data-applist")

@@ -54,6 +54,12 @@
 |---|---|---|---|
 | 应用/批量列表秒开 | 磁盘缓存优先 + 后台刷新（AppList/BatchViewModel 统一） | **保留自造**：业务组合，无现成库 | ✅ |
 
+### D6. 公共 TTL 缓存（2026-08-23 新增）
+| 能力点 | 检查过程 | 采用方案 | 状态 |
+|---|---|---|---|
+| 进程内 TTL 缓存（double-checked locking） | **现成搜索**：kotlinx 无通用 TTL 内存缓存；androidx `LruCache` 为 count-based 非 TTL；guava `CacheBuilder` 需新增依赖（+体积）且本项目仅需 3 处简单 TTL 语义，引入成本 > 收益 | **保留自造**：`core:core-common` 的 `TtlCache<T>`（~60 行，时钟可注入可测），统一 3 处重复实现（Router 可用性 5s / 历史 60s / 应用列表 30s），有行为测试 | ✅ |
+| 双阶段加载顺序约束（缓存秒开→刷新） | 项目内重复（AppList/Batch 两处相同模式），无现成库覆盖"仓库接口扩展函数"场景 | **自造**：`AppListRepository.loadCachedThenFresh` 数据层扩展，两 ViewModel 共用 | ✅ |
+
 ---
 
 ## 自检（reuse-checklist）
@@ -62,4 +68,4 @@
 - [x] 引入新依赖均有理由（DataStore/Coil/icons-extended：标准方案替换自实现）
 - [x] 未因"用库而用库"引入冗余依赖（libsu 拉不到即回滚，未强上）
 - [x] 安全场景（Root/Shizuku 授权）使用官方 API（shizuku-api）
-- [x] 自造项均已记录原因（底栏尺寸约束、FilterChip 无对应、业务解析、libsu 网络限制）
+- [x] 自造项均已记录原因（底栏尺寸约束、FilterChip 无对应、业务解析、libsu 网络限制、TtlCache 现成搜索结论）

@@ -6,6 +6,7 @@ import com.ops.permissionmanager.core.model.AppInfo
 import com.ops.permissionmanager.core.model.AppOp
 import com.ops.permissionmanager.core.model.OpMode
 import com.ops.permissionmanager.data.applist.AppListRepository
+import com.ops.permissionmanager.data.applist.loadCachedThenFresh
 import com.ops.permissionmanager.data.appops.AppOpsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -62,13 +63,15 @@ class BatchViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, message = null) }
             try {
-                // 第一步：先读磁盘缓存，有则立即展示，避免 PackageManager 遍历的等待
-                appListRepository.getCachedInstalledApps()?.let { cached ->
-                    _uiState.update { it.copy(isLoading = false, apps = cached) }
-                }
-                // 第二步：后台构建最新列表（内存/磁盘缓存也在此写入），对比后更新
-                val apps = appListRepository.getInstalledApps()
-                _uiState.update { it.copy(isLoading = false, apps = apps) }
+                // 双阶段加载（磁盘缓存秒开 → 后台刷新最新），顺序约束封装在 data 层
+                appListRepository.loadCachedThenFresh(
+                    onCached = { cached ->
+                        _uiState.update { it.copy(isLoading = false, apps = cached) }
+                    },
+                    onFresh = { apps ->
+                        _uiState.update { it.copy(isLoading = false, apps = apps) }
+                    }
+                )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
