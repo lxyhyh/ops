@@ -126,9 +126,11 @@ class RealAuditRepository @Inject constructor(
         if (!saveScheduled.compareAndSet(false, true)) return
         scope.launch {
             delay(SAVE_DELAY_MS)
-            saveScheduled.set(false)
             mutex.withLock {
                 save(records ?: emptyList())
+                // 锁内保存完成后才重置：避免「重置后、加锁前」窗口内新记录到达时
+                // 再次调度一个保存任务，导致同一窗口重复全量写。
+                saveScheduled.set(false)
             }
         }
     }
