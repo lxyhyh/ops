@@ -8,6 +8,7 @@ import com.ops.permissionmanager.data.appops.ModifyModeRepository
 import com.ops.permissionmanager.data.appops.ShizukuManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,6 +31,9 @@ class SettingsViewModel @Inject constructor(
     private val shizukuManager: ShizukuManager,
     private val versionNameProvider: VersionNameProvider
 ) : ViewModel() {
+
+    /** 当前探测任务：重入时取消旧任务，避免并发探测结果乱序覆盖（与 RootCheckViewModel 一致）。 */
+    private var checkJob: Job? = null
 
     private val _uiState = MutableStateFlow(
         SettingsUiState(
@@ -78,7 +82,9 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun checkAvailability() {
-        viewModelScope.launch {
+        // 取消上一次未完成的探测（快速连续触发时只保留最后一次的结果）
+        checkJob?.cancel()
+        checkJob = viewModelScope.launch {
             val available = runCatching { executionAvailability.isRootAvailable() }
                 .getOrDefault(false)
             _uiState.update { it.copy(isRootAvailable = available) }
