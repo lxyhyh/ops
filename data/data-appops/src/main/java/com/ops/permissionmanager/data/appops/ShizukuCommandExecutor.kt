@@ -15,6 +15,9 @@ class ShizukuCommandExecutor @Inject constructor(
 ) : CommandExecutor {
 
     private companion object {
+        // 注意：Shizuku#newProcess 在 shizuku-api 中是 private static（无 public 替代，
+        // 官方公开入口 ShizukuRemoteProcess 不直接支持任意命令），必须反射调用；
+        // R8 混淆需 keep（见 proguard-rules.pro），升级 shizuku-api 时需回归验证。
         val NEW_PROCESS_METHOD: Method? by lazy {
             try {
                 val clazz = Class.forName("rikka.shizuku.Shizuku")
