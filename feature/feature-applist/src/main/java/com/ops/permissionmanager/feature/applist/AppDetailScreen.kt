@@ -396,10 +396,11 @@ private fun AppDetailInfoBlock(
     }
 }
 
-private val DETAIL_DATE_FORMATTER = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+// SimpleDateFormat 非线程安全：ThreadLocal 隔离每线程实例（当前仅主线程格式化，防御未来后台使用）。
+private val DETAIL_DATE_FORMATTER = ThreadLocal.withInitial { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
 
-private val AUDIT_TIME_FORMATTER = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+private val AUDIT_TIME_FORMATTER = ThreadLocal.withInitial { SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()) }
 
-private fun formatDate(millis: Long): String = DETAIL_DATE_FORMATTER.format(Date(millis))
+private fun formatDate(millis: Long): String = DETAIL_DATE_FORMATTER.get().format(Date(millis))
 
-private fun formatAuditTime(millis: Long): String = AUDIT_TIME_FORMATTER.format(Date(millis))
+private fun formatAuditTime(millis: Long): String = AUDIT_TIME_FORMATTER.get().format(Date(millis))

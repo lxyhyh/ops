@@ -225,6 +225,7 @@ private fun HistoryRecordRow(
     }
 }
 
-private val TIME_FORMATTER = SimpleDateFormat("MM-dd HH:mm:ss", Locale.getDefault())
+// SimpleDateFormat 非线程安全：ThreadLocal 隔离每线程实例（当前仅主线程格式化，防御未来后台使用）。
+private val TIME_FORMATTER = ThreadLocal.withInitial { SimpleDateFormat("MM-dd HH:mm:ss", Locale.getDefault()) }
 
-private fun formatTime(millis: Long): String = TIME_FORMATTER.format(Date(millis))
+private fun formatTime(millis: Long): String = TIME_FORMATTER.get().format(Date(millis))
