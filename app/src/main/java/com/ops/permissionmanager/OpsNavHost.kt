@@ -69,7 +69,7 @@ private data class TopLevelDestination(
 )
 
 private val topLevelDestinations = listOf(
-    // Apps/Tune/History 为自建 TabIcons（避免引入 material-icons-extended 全量库），Settings 用 icons-core
+    // Apps/Tune/History 图标来自 material-icons-extended（TabIcons.kt），Settings 用 icons-core
     TopLevelDestination(0, "应用", TabIcons.Apps),
     TopLevelDestination(1, "批量", TabIcons.Tune),
     TopLevelDestination(2, "历史", TabIcons.History),
