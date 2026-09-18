@@ -28,9 +28,12 @@ class DataStoreSettingsRepository @Inject constructor(
     /** 启动竞态防护：构造时同步读取持久化主题，避免首帧闪回默认 SYSTEM。 */
     private val _themeMode: MutableStateFlow<ThemeMode> = MutableStateFlow(
         runBlocking(Dispatchers.IO) {
-            dataStore.data.first()[SettingsPrefKeys.KEY_THEME_MODE]
-                ?.let { name -> ThemeMode.entries.firstOrNull { it.name == name } }
-                ?: ThemeMode.SYSTEM
+            // runCatching：DataStore 读取异常（如文件损坏）时不崩溃，回退默认 SYSTEM。
+            runCatching {
+                dataStore.data.first()[SettingsPrefKeys.KEY_THEME_MODE]
+                    ?.let { name -> ThemeMode.entries.firstOrNull { it.name == name } }
+                    ?: ThemeMode.SYSTEM
+            }.getOrDefault(ThemeMode.SYSTEM)
         }
     )
 

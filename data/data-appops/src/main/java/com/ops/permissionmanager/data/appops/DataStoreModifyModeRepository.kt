@@ -39,7 +39,9 @@ class DataStoreModifyModeRepository @Inject constructor(
 
     private val _modifyMode = MutableStateFlow(
         runBlocking(Dispatchers.IO) {
-            ModifyMode.fromName(dataStore.data.first()[KEY_MODIFY_MODE])
+            // runCatching：DataStore 读取异常（如文件损坏）时不崩溃，回退默认 AUTO。
+            runCatching { ModifyMode.fromName(dataStore.data.first()[KEY_MODIFY_MODE]) }
+                .getOrDefault(ModifyMode.AUTO)
         }
     )
 
