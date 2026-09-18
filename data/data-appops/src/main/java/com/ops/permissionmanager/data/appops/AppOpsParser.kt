@@ -21,6 +21,13 @@ import javax.inject.Inject
  */
 class AppOpsParser @Inject constructor() {
 
+    private val GET_LINE_REGEX = Regex("""([A-Z_]+):\s*(\w+)(?:;.*)?""")
+    // 与原版一致：时间戳小数位不限
+    private val TIMESTAMP_REGEX = Regex("""\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:\.\d+)?""")
+    /** Access/Reject 行时间戳之后的次数（如 "[...] 3"）。 */
+    private val COUNT_REGEX = Regex("""(\d+)""")
+    private val TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.SSS]")
+
     fun parseGetOutput(raw: String): List<AppOpState> =
         raw.lineSequence()
             .mapNotNull { line ->
@@ -107,17 +114,5 @@ class AppOpsParser @Inject constructor() {
         } catch (_: Exception) {
             null
         }
-    }
-
-    companion object {
-        private val GET_LINE_REGEX = Regex("""([A-Z_]+):\s*(\w+)(?:;.*)?""")
-        // 与原版一致：时间戳小数位不限
-        private val TIMESTAMP_REGEX = Regex("""\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:\.\d+)?""")
-        /** Access/Reject 行时间戳之后的次数（如 "[...] 3"）。 */
-        private val COUNT_REGEX = Regex("""(\d+)""")
-        private val TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.SSS]")
-        private val INSTANCE by lazy { AppOpsParser() }
-        fun parseGetOutput(raw: String): List<AppOpState> = INSTANCE.parseGetOutput(raw)
-        fun parseHistoryOutput(raw: String): List<OpUsageRecord> = INSTANCE.parseHistoryOutput(raw)
     }
 }
